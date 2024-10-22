@@ -7,11 +7,13 @@ clc
 save_res = 1;
 numICs = 100;
 visit = 'rest1';
+path_data = 'C:\Users\100063082\Desktop\MSWD_paper_files';
+path_save = 'E:\MSWD_paper_new';
 
 if contains(pwd,'100063082')
-    path_tmaps = 'C:\Users\100063082\Desktop\MSWD_paper_files\dyn_tmap_comps_centered.nii';
-    path_hcp_average = 'C:\Users\100063082\Desktop\MSWD_paper_files\HCP_PTN1200\groupICA\groupICA_3T_HCP1200_MSMAll_d100.ica\melodic_IC_sum.nii';
-    path_data = 'C:\Users\100063082\Desktop\MSWD_paper_files\HCP_PTN1200\NodeTimeseries_3T_HCP1200_MSMAll_ICAd100_ts2\node_timeseries\3T_HCP1200_MSMAll_d100_ts2';
+    path_tmaps = fullfile(path_data,'dyn_tmap_comps_centered.nii');
+    path_hcp_average = fullfile(path_data,'HCP_PTN1200\groupICA\groupICA_3T_HCP1200_MSMAll_d100.ica\melodic_IC_sum.nii');
+    path_data = fullfile(path_data,'HCP_PTN1200\NodeTimeseries_3T_HCP1200_MSMAll_ICAd100_ts2\node_timeseries\3T_HCP1200_MSMAll_d100_ts2');
 end
 
 tmaps = niftiread(path_tmaps);
@@ -69,27 +71,24 @@ fs = 1/0.72;
 thresh_same_imf = 10;
 min_freq = 0.01;
 
-numSubjects = 50;
+numSubjects = 98;
 compStds = zeros(1,numSubjects);
 winds = zeros(1,numSubjects);
 minPeaks = zeros(1,numSubjects);
 imfs_MSWD = cell(1,numSubjects);
 imfs_MVMD = cell(1,numSubjects);
 
-if exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_50_subjects.mat'])
-    resMSWD = load(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_50_subjects.mat']);
+if exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_50_subjects.mat']))
+    resMSWD = load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_50_subjects.mat']));
 end
-if exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_50_subjects.mat'])
-    resMVMD = load(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_50_subjects.mat']);
+if exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_50_subjects.mat']))
+    resMVMD = load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_50_subjects.mat']));
 end
 
 load("names_98_subjects.mat");
-if numSubjects ~= 98
-    names = names(1:numSubjects);
-end
 
-if ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_50_subjects.mat'])
-    for i = 1:numSubjects
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_50_subjects.mat']))
+    for i = 1:50
         name = names{i};
         data = load(fullfile(path_data,name));
         data = data(1:1200,I);
@@ -108,8 +107,8 @@ end
 
 clear Px
 
-if ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat'])
-    if exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_50_subjects.mat'])
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat']))
+    if exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat']))
         for i = 1:length(resMVMD.imfs_MVMD)
             for j = 1:size(resMVMD.imfs_MVMD{i},1)
                 if i == 1 && j == 1
@@ -141,7 +140,7 @@ for i = 1:numSubjects
     name = names{i};
     data = load(fullfile(path_data,name));
     %% MSWD
-    if ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_98_subjects.mat'])
+    if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_98_subjects.mat']))
         data_MSWD = data(1:1200,I);
         data_MSWD = data_MSWD./max(abs(data_MSWD));
         p_value = 1e-5;
@@ -157,10 +156,10 @@ for i = 1:numSubjects
         imf = MSWD_CL(data_MSWD, param_struct);
         imfs_MSWD{i} = imf;
         disp(i)
-    elseif ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_98_subjects.mat'])
+    elseif ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_50_subjects.mat']))
         imf = resMSWD.imfs_MSWD{i};
     end
-    if ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_98_subjects.mat'])
+    if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_50_subjects.mat'])) && i <= 50
         COSDELPHI = phase_sync_analysis_HCP(imf,'MSWD',indx,...
              fs,inds_MSWD,min_freq);
         COSDELPHI1_MSWD{i} = COSDELPHI;
@@ -168,7 +167,7 @@ for i = 1:numSubjects
     
 
     %% MVMD
-    if ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_50_subjects.mat'])
+    if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_50_subjects.mat']))
         data_MVMD = data(1:1200,I);
         data_MVMD = data_MVMD./max(abs(data_MVMD));
         tau = 0; DC = 1; init = 0; tol = 1e-9;
@@ -176,31 +175,31 @@ for i = 1:numSubjects
         imf = MVMD_new(data_MVMD,alpha,tau,K,DC,init,tol);
         imfs_MVMD{i} = imf;
         disp(i)
-    elseif ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat'])
+    elseif ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat']))
         imf = resMVMD.imfs_MVMD{i};
     end
-    if ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat'])
+    if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat']))
         COSDELPHI = phase_sync_analysis_HCP(imf,'MVMD',indx,...
              fs,inds_MVMD,min_freq);
         COSDELPHI1_MVMD{i} = COSDELPHI;
     end
 end
 
-if ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_',num2str(numSubjects),'_subjects.mat'])
-    save(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_',num2str(numSubjects),'_subjects.mat'],"imfs_MSWD")
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_98_subjects.mat']))
+    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_98_subjects.mat']),"imfs_MSWD")
 end
 
-if ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_',num2str(numSubjects),'_subjects.mat'])
-    save(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_',num2str(numSubjects),'_subjects.mat'],'COSDELPHI1_MSWD','-v7.3')
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_50_subjects.mat']))
+    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_50_subjects.mat']),'COSDELPHI1_MSWD','-v7.3')
 end
 
 
-if ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_',num2str(numSubjects),'_subjects.mat'])
-    save(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_',num2str(numSubjects),'_subjects.mat'],"imfs_MVMD")
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_50_subjects.mat']))
+    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_50_subjects.mat']),"imfs_MVMD")
 end
 
-if ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_',num2str(numSubjects),'_subjects.mat'])
-    save(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_',num2str(numSubjects),'_subjects.mat'],'COSDELPHI1_MVMD','-v7.3')
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat']))
+    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat']),'COSDELPHI1_MVMD','-v7.3')
 end
 
 

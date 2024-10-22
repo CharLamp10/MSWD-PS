@@ -5,6 +5,8 @@ clear
 clc
 close all
 
+path_data = 'E:\MSWD_paper_new';
+
 numSubjects = 50;
 visit = 'rest1';
 numICs = 100;
@@ -13,8 +15,8 @@ save_res = true;
 plotStateTransitions = false;
 
 %% Load TVPS data and concatenate them across subjects
-load(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_50_subjects.mat'])
-load(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat'])
+load(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_50_subjects.mat']))
+load(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat']))
 
 for i = 1:length(COSDELPHI1_MSWD)
     if i == 1
@@ -37,18 +39,18 @@ E_MSWDs = E_MSWD;
 DBI_MSWD = E_MSWD.OptimalK;
 
 %% Perform clustering and get the centroids and the clustered data
-if ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_all.mat']) ||...
-    ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_all.mat'])
+if ~exist(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_all.mat'])) ||...
+    ~exist(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_all.mat']))
     [~,C_init_MVMD,sumd_MVMD] = kmeans(squeeze(COSDELPHI_MVMD),DBI_MVMD,'MaxIter',150,'Start','sample','Replicates',10); % replicates default 200, MaxIter 150, replicates 10
     [mean_idx_MVMD_all{1},mean_C_MVMD_all{1}] = kmeans(squeeze(COSDELPHI_MVMD),DBI_MVMD,'MaxIter',500,'Start',C_init_MVMD); %1000 default
     
     [~,C_init_MSWD,sumd_MSWD] = kmeans(squeeze(COSDELPHI_MSWD),DBI_MSWD,'MaxIter',150,'Start','sample','Replicates',10); % replicates default 200, MaxIter 150, replicates 10
     [mean_idx_MSWD_all{1},mean_C_MSWD_all{1}] = kmeans(squeeze(COSDELPHI_MSWD),DBI_MSWD,'MaxIter',500,'Start',C_init_MSWD); %1000 default
-    save(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_all.mat'],'mean_idx_MVMD_all','mean_C_MVMD_all');
-    save(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_all.mat'],'mean_idx_MSWD_all',"mean_C_MSWD_all");
+    save(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_all.mat']),'mean_idx_MVMD_all','mean_C_MVMD_all');
+    save(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_all.mat']),'mean_idx_MSWD_all',"mean_C_MSWD_all");
 else
-    load(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_all.mat']);
-    load(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_all.mat']);
+    load(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_all.mat']));
+    load(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_all.mat']));
 end
 
 %% Calculate correlation coefficient among the 2 states for both methods
@@ -84,8 +86,8 @@ end
 
 
 %% Bootstrap analysis to show that the centroids/brain states are robust
-if ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_btsrp.mat']) ||...
-    ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_btsrp.mat'])
+if ~exist(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_btsrp.mat'])) ||...
+    ~exist(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_btsrp.mat']))
     for i = 1:25
         N = randperm(numSubjects,10);
         mask = zeros(size(COSDELPHI_MSWD,1),1);
@@ -103,11 +105,11 @@ if ~exist(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD
         [mean_idx_MSWD_bstrp{i},mean_C_MSWD_bstrp{i}] = kmeans(squeeze(COSDELPHI_MSWD_btsrp),DBI_MSWD,'MaxIter',500,'Start',C_init_MSWD); %1000 default
         disp(i)
     end
-    save(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_btsrp.mat'],"mean_C_MVMD_bstrp")
-    save(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_btsrp.mat'],"mean_C_MSWD_bstrp")
+    save(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_btsrp.mat']),"mean_C_MVMD_bstrp")
+    save(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_btsrp.mat']),"mean_C_MSWD_bstrp")
 else
-    load(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_btsrp.mat'])
-    load(['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_btsrp.mat'])
+    load(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_btsrp.mat']))
+    load(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_btsrp.mat']))
 end
 
 %% Correlation coefficient between the bootstrap centroids and the original centroids
