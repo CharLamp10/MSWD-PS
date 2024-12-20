@@ -64,9 +64,9 @@ for nn = 1:length(SNR)
    
     
     %% MSWD-CL
-    imfs_MSWD_CL = cell(1,N);
+    imfs_MSWD = cell(1,N);
     corrs = cell(1,N);
-    T_MSWD_CL = zeros(1,N);
+    T_MSWD = zeros(1,N);
     if ~exist(fullfile("decomposed",['sim5_MSWD_SNR',num2str(SNR(nn)),'.mat']))
         for m = 1:N
             p_value = 1e-5;
@@ -81,12 +81,12 @@ for nn = 1:length(SNR)
                 'Freq_int',     freq_interval, ...
                 'p_value',      1e-5);
             tic
-            [imf,corrs{m}] = MSWD(Data{m}, param_struct);
-            T_MSWD_CL(m) = toc;
-            imfs_MSWD_CL{m} = imf;
+            imf = MSWD(Data{m}, param_struct);
+            T_MSWD(m) = toc;
+            imfs_MSWD{m} = imf;
         end
         disp('MSWD')
-        save(fullfile("decomposed",['sim5_MSWD_SNR',num2str(SNR(nn)),'.mat']),"imfs_MSWD_CL","corrs","T_MSWD_CL")
+        save(fullfile("decomposed",['sim5_MSWD_SNR',num2str(SNR(nn)),'.mat']),"imfs_MSWD","T_MSWD")
     end
 end
 

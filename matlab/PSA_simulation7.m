@@ -95,7 +95,7 @@ for k = 1:length(P_corr_imps)
                     'StD_th',       compStd, ...
                     'Welch_window', wind, ...
                     'p_value',      1e-5);
-                imf = MSWD_CL(Data{m}, param_struct);
+                imf = MSWD(Data{m}, param_struct);
                 imfs_MSWD{k,a,m} = imf;
             else
                 imf = imfs_MSWD{k,a,m};

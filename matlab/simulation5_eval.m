@@ -59,7 +59,7 @@ for nn = 1:length(SNR)
         
     %% MSWD
     for m = 1:N
-        imf = imfs_MSWD_CL{m};
+        imf = imfs_MSWD{m};
         if m == 1
             plv_length = length(freq_ranges);
         else

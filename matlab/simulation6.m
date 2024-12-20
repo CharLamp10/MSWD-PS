@@ -68,7 +68,7 @@ end
 
 
 %% MSWD-CL
-imfs_MSWD_CL = cell(1,N);
+imfs_MSWD = cell(1,N);
 corrs = cell(1,N);
 T_MSWD = zeros(1,N);
 if ~exist(fullfile("decomposed","sim6_MSWD.mat"))
@@ -85,10 +85,10 @@ if ~exist(fullfile("decomposed","sim6_MSWD.mat"))
             'Freq_int',     freq_interval, ...
             'p_value',      1e-5);
         tic
-        [imf,corrs{m}] = MSWD(Data{m}, param_struct);
+        imf = MSWD(Data{m}, param_struct);
         T_MSWD(m) = toc;
-        imfs_MSWD_CL{m} = imf;
+        imfs_MSWD{m} = imf;
     end
     disp('MSWD')
-    save(fullfile("decomposed","sim6_MSWD.mat"),"imfs_MSWD_CL","corrs","T_MSWD")
+    save(fullfile("decomposed","sim6_MSWD.mat"),"imfs_MSWD","T_MSWD")
 end

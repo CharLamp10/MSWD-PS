@@ -87,52 +87,8 @@ end
 
 load("names_98_subjects.mat");
 
-if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_50_subjects.mat']))
-    for i = 1:50
-        name = names{i};
-        data = load(fullfile(path_data,name));
-        data = data(1:1200,I);
-        if i == 1
-            fft_len = 301;
-            [~,w] = cpsd(data(:,1), data(:,2), 200, [], 2*(fft_len-1) + 1,'mimo');
-            fn = w./(2*pi);
-            f_mswd = fn*fs;
-        end
-        data = data./max(abs(data));
-        Px = gcpsd(data,200);
-        frequencies_MSWD{i} = f_mswd(Px == max(Px));
-        Pxs_MSWD(:,i) = Px;
-    end
-end
 
-clear Px
-
-if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat']))
-    if exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat']))
-        for i = 1:length(resMVMD.imfs_MVMD)
-            for j = 1:size(resMVMD.imfs_MVMD{i},1)
-                if i == 1 && j == 1
-                    [~,f_mvmd] = pwelch(squeeze(resMVMD.imfs_MVMD{i}(j,:,:)),1200,[],[],fs);
-                end
-                Px(i,j,:) = sum(pwelch(squeeze(resMVMD.imfs_MVMD{i}(j,:,:)),1200,[],[],fs),2);
-            end
-        end
-        for i = 1:size(Px,1)
-            for j = 1:size(Px,2)
-                frequencies_MVMD_sep(i,j) = f_mvmd(Px(i,j,:) == max(Px(i,j,:)));
-            end
-        end
-        Px = squeeze(sum(Px,1))';
-        for i = 1:size(Px,2)
-            frequencies_MVMD(i) = f_mvmd(Px(:,i) == max(Px(:,i)));
-        end
-        Pxs_MVMD = Px;
-    end
-end
-
-inds_MVMD = [2]; %After visually inspecting Pxs_MVMD
-inds_MSWD = [1];
-% inds_MSWD are defined inside the for loop
+inds_MSWD = [1]; %In MSWD we get always the first component
 
 indx = nchoosek(1:numICs,2);
 
@@ -153,7 +109,7 @@ for i = 1:numSubjects
             'StD_th',       compStd, ...
             'Welch_window', wind, ...
             'p_value',      1e-5);
-        imf = MSWD_CL(data_MSWD, param_struct);
+        imf = MSWD(data_MSWD, param_struct);
         imfs_MSWD{i} = imf;
         disp(i)
     elseif ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_50_subjects.mat']))
@@ -161,11 +117,14 @@ for i = 1:numSubjects
     end
     if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_50_subjects.mat'])) && i <= 50
         COSDELPHI = phase_sync_analysis_HCP(imf,'MSWD',indx,...
-             fs,inds_MSWD,min_freq);
+             inds_MSWD);
         COSDELPHI1_MSWD{i} = COSDELPHI;
     end
+end
     
-
+for i = 1:numSubjects
+    name = names{i};
+    data = load(fullfile(path_data,name));
     %% MVMD
     if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_50_subjects.mat']))
         data_MVMD = data(1:1200,I);
@@ -175,12 +134,38 @@ for i = 1:numSubjects
         imf = MVMD_new(data_MVMD,alpha,tau,K,DC,init,tol);
         imfs_MVMD{i} = imf;
         disp(i)
-    elseif ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat']))
-        imf = resMVMD.imfs_MVMD{i};
     end
+end
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_50_subjects.mat']))
+    resMVMD.imfs_MVMD = imfs_MVMD;
+end
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat']))
+    for i = 1:length(resMVMD.imfs_MVMD)
+        for j = 1:size(resMVMD.imfs_MVMD{i},1)
+            if i == 1 && j == 1
+                [~,f_mvmd] = pwelch(squeeze(resMVMD.imfs_MVMD{i}(j,:,:)),1200,[],[],fs);
+            end
+            Px(i,j,:) = sum(pwelch(squeeze(resMVMD.imfs_MVMD{i}(j,:,:)),1200,[],[],fs),2);
+        end
+    end
+    for i = 1:size(Px,1)
+        for j = 1:size(Px,2)
+            frequencies_MVMD_sep(i,j) = f_mvmd(Px(i,j,:) == max(Px(i,j,:)));
+        end
+    end
+    Px = squeeze(sum(Px,1))';
+    for i = 1:size(Px,2)
+        frequencies_MVMD(i) = f_mvmd(Px(:,i) == max(Px(:,i)));
+    end
+    Pxs_MVMD = Px;
+    [~,pos_maxs] = max(Pxs_MVMD);
+    f_maxs = f_mvmd(pos_maxs);
+    [~,inds_MVMD] = min(abs(f_maxs-0.05)); %Find the component closest to 0.05 Hz
+end
+for i = 1:numSubjects
     if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_50_subjects.mat']))
-        COSDELPHI = phase_sync_analysis_HCP(imf,'MVMD',indx,...
-             fs,inds_MVMD,min_freq);
+        COSDELPHI = phase_sync_analysis_HCP(resMVMD.imfs_MVMD{i},'MVMD',indx,...
+             inds_MVMD);
         COSDELPHI1_MVMD{i} = COSDELPHI;
     end
 end
