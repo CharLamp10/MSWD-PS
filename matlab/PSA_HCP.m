@@ -4,6 +4,7 @@
 clear
 clc
 
+save_plots = false;
 save_res = 1;
 numICs = 100;
 visit = 'rest1';
@@ -71,12 +72,7 @@ fs = 1/0.72;
 thresh_same_imf = 10;
 min_freq = 0.01;
 
-numSubjects = 98;
-compStds = zeros(1,numSubjects);
-winds = zeros(1,numSubjects);
-minPeaks = zeros(1,numSubjects);
-imfs_MSWD = cell(1,numSubjects);
-imfs_MVMD = cell(1,numSubjects);
+numSubjects = 50;
 
 if exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']))
     resMSWD = load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']));
@@ -97,13 +93,16 @@ alphas = [500,2000,5000];
 compStds = [0.002,0.01,0.1,0.2];
 P_corr_imps = [0.01,0.07,0.1];
 
+imfs_MSWD = cell(numSubjects,length(compStds),length(P_corr_imps));
+imfs_MVMD = cell(numSubjects,length(Ks),length(alphas));
+
 for k = 1:length(compStds)
     for a = 1:length(P_corr_imps)
         for i = 1:numSubjects
-            name = names{i};
-            data = load(fullfile(path_data,name));
-            %% MSWD
             if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']))
+                %% MSWD
+                name = names{i};
+                data = load(fullfile(path_data,name));
                 data_MSWD = data(1:1200,I);
                 data_MSWD = data_MSWD./max(abs(data_MSWD));
                 p_value = 1e-5;
@@ -134,10 +133,10 @@ end
 for k = 1:length(Ks)
     for a = 1:length(alphas)
         for i = 1:numSubjects
-            name = names{i};
-            data = load(fullfile(path_data,name));
-            %% MVMD
             if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_PSA.mat']))
+                %% MVMD
+                name = names{i};
+                data = load(fullfile(path_data,name));
                 data_MVMD = data(1:1200,I);
                 data_MVMD = data_MVMD./max(abs(data_MVMD));
                 tau = 0; DC = 1; init = 0; tol = 1e-9;
@@ -176,16 +175,18 @@ if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_
             [~,pos_maxs] = max(Pxs_MVMD);
             f_maxs = f_mvmd(pos_maxs);
             [~,inds_MVMD(k,a)] = min(abs(f_maxs-0.05)); %Find the component closest to 0.05 Hz
+            clear Px
         end
     end
-end
-for k = 1:length(Ks)
-    for a = 1:length(alphas)
-        for i = 1:numSubjects
-            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_PSA.mat']))
-                COSDELPHI = phase_sync_analysis_HCP(resMVMD.imfs_MVMD{i,k,a},'MVMD',indx,...
-                     inds_MVMD(k,a));
-                COSDELPHI1_MVMD{i,k,a} = COSDELPHI;
+
+    for k = 1:length(Ks)
+        for a = 1:length(alphas)
+            for i = 1:numSubjects
+                if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_PSA.mat']))
+                    COSDELPHI = phase_sync_analysis_HCP(resMVMD.imfs_MVMD{i,k,a},'MVMD',indx,...
+                         inds_MVMD(k,a));
+                    COSDELPHI1_MVMD{i,k,a} = COSDELPHI;
+                end
             end
         end
     end
@@ -218,63 +219,71 @@ end
 
 DBI_MVMD = 2;
 DBI_MSWD = 2;
-for k = 1:length(Ks)
-    for a = 1:length(alphas)
-        for i = 1:length(COSDELPHI1_MSWD)
-            if i == 1
-                COSDELPHI_MSWD = COSDELPHI1_MSWD{i,k,a};
-                COSDELPHI_MVMD = COSDELPHI1_MVMD{i,k,a};
-            else
-                COSDELPHI_MSWD = cat(1,COSDELPHI_MSWD,COSDELPHI1_MSWD{i,k,a});
-                COSDELPHI_MVMD = cat(1,COSDELPHI_MVMD,COSDELPHI1_MVMD{i,k,a});
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat'])) ||...
+            ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']))
+    for k = 1:length(Ks)
+        for a = 1:length(alphas)
+            for i = 1:length(COSDELPHI1_MSWD)
+                if i == 1
+                    COSDELPHI_MSWD = COSDELPHI1_MSWD{i,k,a};
+                    COSDELPHI_MVMD = COSDELPHI1_MVMD{i,k,a};
+                else
+                    COSDELPHI_MSWD = cat(1,COSDELPHI_MSWD,COSDELPHI1_MSWD{i,k,a});
+                    COSDELPHI_MVMD = cat(1,COSDELPHI_MVMD,COSDELPHI1_MVMD{i,k,a});
+                end
             end
-        end
-        if ~exist(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat'])) ||...
-            ~exist(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']))
+        
             [~,C_init_MVMD,sumd_MVMD] = kmeans(squeeze(COSDELPHI_MVMD),DBI_MVMD,'MaxIter',150,'Start','sample','Replicates',10); % replicates default 200, MaxIter 150, replicates 10
             [mean_idx_MVMD_psa{k,a},mean_C_MVMD_psa{k,a}] = kmeans(squeeze(COSDELPHI_MVMD),DBI_MVMD,'MaxIter',500,'Start',C_init_MVMD); %1000 default
             
             [~,C_init_MSWD,sumd_MSWD] = kmeans(squeeze(COSDELPHI_MSWD),DBI_MSWD,'MaxIter',150,'Start','sample','Replicates',10); % replicates default 200, MaxIter 150, replicates 10
             [mean_idx_MSWD_psa{k,a},mean_C_MSWD_psa{k,a}] = kmeans(squeeze(COSDELPHI_MSWD),DBI_MSWD,'MaxIter',500,'Start',C_init_MSWD); %1000 default
-            save(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat']),'mean_idx_MVMD_psa','mean_C_MVMD_psa');
-            save(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']),'mean_idx_MSWD_psa',"mean_C_MSWD_psa");
-        else
-            load(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat']));
-            load(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']));
+            disp(['k = ', num2str(k), ', a = ', num2str(a)])
         end
+    end
+    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat']),'mean_C_MVMD_psa','mean_idx_MVMD_psa');
+    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']),'mean_C_MSWD_psa','mean_idx_MSWD_psa');
+else
+    load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat']));
+    load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']));
+end
 
-        load(fullfile(path_save,'MSWD_CL_paper_decomposed_HCP_rest1\MVMD_HCP_50_subjects.mat'))
-        load(fullfile(path_save,'MSWD_CL_paper_decomposed_HCP_rest1\MSWD_HCP_50_subjects.mat'))
+load(fullfile(path_save,'MSWD_CL_paper_decomposed_HCP_rest1\mean_C_MVMD_all.mat'))
+load(fullfile(path_save,'MSWD_CL_paper_decomposed_HCP_rest1\mean_C_MSWD_all.mat'))
 
-        r1 = corrcoef(mean_C_MVMD_psa{k,a}(1,:),mean_C_MVMD_all{1}(1,:));
-        r2 = corrcoef(mean_C_MVMD_psa{k,a}(2,:),mean_C_MVMD_all{1}(2,:));
-        r3 = corrcoef(mean_C_MVMD_psa{k,a}(1,:),mean_C_MVMD_all{1}(2,:));
-        r4 = corrcoef(mean_C_MVMD_psa{k,a}(2,:),mean_C_MVMD_all{1}(1,:));
-        if r1(1,2) + r2(1,2) > r3(1,2) + r4(1,2)
-            corrs_MVMD(k,a,1) = r1(1,2);
-            corrs_MVMD(k,a,2) = r2(1,2);
+for k = 1:length(Ks)
+    for a = 1:length(alphas)
+        r1 = rmse(mean_C_MVMD_psa{k,a}(1,:),mean_C_MVMD_all{1}(1,:));
+        r2 = rmse(mean_C_MVMD_psa{k,a}(2,:),mean_C_MVMD_all{1}(2,:));
+        r3 = rmse(mean_C_MVMD_psa{k,a}(1,:),mean_C_MVMD_all{1}(2,:));
+        r4 = rmse(mean_C_MVMD_psa{k,a}(2,:),mean_C_MVMD_all{1}(1,:));
+        if r1 + r2 < r3 + r4
+            corrs_MVMD(k,a,1) = r1;
+            corrs_MVMD(k,a,2) = r2;
         else
-            corrs_MVMD(k,a,1) = r4(1,2);
-            corrs_MVMD(k,a,2) = r3(1,2);
+            corrs_MVMD(k,a,1) = r4;
+            corrs_MVMD(k,a,2) = r3;
         end
     
-        r1 = corrcoef(mean_C_MSWD_psa{k,a}(1,:),mean_C_MSWD_all{1}(1,:));
-        r2 = corrcoef(mean_C_MSWD_psa{k,a}(2,:),mean_C_MSWD_all{1}(2,:));
-        r3 = corrcoef(mean_C_MSWD_psa{k,a}(1,:),mean_C_MSWD_all{1}(2,:));
-        r4 = corrcoef(mean_C_MSWD_psa{k,a}(2,:),mean_C_MSWD_all{1}(1,:));
-        if r1(1,2) + r2(1,2) > r3(1,2) + r4(1,2)
-            corrs_MSWD(k,a,1) = r1(1,2);
-            corrs_MSWD(k,a,2) = r2(1,2);
+        r1 = rmse(mean_C_MSWD_psa{k,a}(1,:),mean_C_MSWD_all{1}(1,:));
+        r2 = rmse(mean_C_MSWD_psa{k,a}(2,:),mean_C_MSWD_all{1}(2,:));
+        r3 = rmse(mean_C_MSWD_psa{k,a}(1,:),mean_C_MSWD_all{1}(2,:));
+        r4 = rmse(mean_C_MSWD_psa{k,a}(2,:),mean_C_MSWD_all{1}(1,:));
+        if r1 + r2 < r3 + r4
+            corrs_MSWD(k,a,1) = r1;
+            corrs_MSWD(k,a,2) = r2;
         else
-            corrs_MSWD(k,a,1) = r4(1,2);
-            corrs_MSWD(k,a,2) = r3(1,2);
+            corrs_MSWD(k,a,1) = r4;
+            corrs_MSWD(k,a,2) = r3;
         end 
     end
 end
 
+minimum = min([min(corrs_MVMD(:,:,1),[],"all"),min(corrs_MSWD(:,:,1),[],"all")]);
+maximum = max([max(corrs_MVMD(:,:,1),[],"all"),max(corrs_MSWD(:,:,1),[],"all")]);
 
 figure
-surf(1:length(alphas),1:length(Ks),corrs_MVMD(:,:,1)');
+surf(Ks,1:length(alphas),corrs_MVMD(:,:,1)');
 ax = gca;
 ax.FontSize = 12;
 xlabel('K','FontSize',14)
@@ -283,11 +292,13 @@ ylabel('alpha','FontSize',14)
 yticks(1:length(alphas))
 yticklabels({'500','2000','5000'})
 zlim([minimum,maximum])
-c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum+0.2 maximum-0.2])
-
+c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
+if save_plots
+    exportgraphics(gcf,fullfile('plots_PSA','MVMD_state_1_HCP_RMSE.png'),'Resolution',1000)
+end
 
 figure
-surf(1:length(P_corr_imps),1:length(compStds),corrs_MSWD(:,:,2)');
+surf(1:length(P_corr_imps),1:length(compStds),corrs_MSWD(:,:,1));
 ax = gca;
 ax.FontSize = 12;
 xlabel('Corr_t_h','FontSize',14)
@@ -297,11 +308,33 @@ yticks(1:length(compStds))
 yticklabels({'0.002','0.01','0.1','0.2'})
 xticklabels({'0.01','0.07','0.1'})
 zlim([minimum,maximum])
-c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum+0.2 maximum-0.2])
+c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
+if save_plots
+    exportgraphics(gcf,fullfile('plots_PSA','MSWD_state_1_HCP_RMSE.png'),'Resolution',1000)
+end
+
+
+minimum = min([min(corrs_MVMD(:,:,2),[],"all"),min(corrs_MSWD(:,:,2),[],"all")]);
+maximum = max([max(corrs_MVMD(:,:,2),[],"all"),max(corrs_MSWD(:,:,2),[],"all")]);
+
+figure
+surf(Ks,1:length(alphas),corrs_MVMD(:,:,2)');
+ax = gca;
+ax.FontSize = 12;
+xlabel('K','FontSize',14)
+xticks(Ks)
+ylabel('alpha','FontSize',14)
+yticks(1:length(alphas))
+yticklabels({'500','2000','5000'})
+zlim([minimum,maximum])
+c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
+if save_plots
+    exportgraphics(gcf,fullfile('plots_PSA','MVMD_state_2_HCP_RMSE.png'),'Resolution',1000)
+end
 
 
 figure
-surf(1:length(P_corr_imps),1:length(compStds),corrs_MSWD(:,:,1)');
+surf(1:length(P_corr_imps),1:length(compStds),corrs_MSWD(:,:,2));
 ax = gca;
 ax.FontSize = 12;
 xlabel('Corr_t_h','FontSize',14)
@@ -311,19 +344,8 @@ yticks(1:length(compStds))
 yticklabels({'0.002','0.01','0.1','0.2'})
 xticklabels({'0.01','0.07','0.1'})
 zlim([minimum,maximum])
-c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum+0.2 maximum-0.2])
-
-
-figure
-surf(1:length(P_corr_imps),1:length(compStds),corrs_MSWD(:,:,2)');
-ax = gca;
-ax.FontSize = 12;
-xlabel('Corr_t_h','FontSize',14)
-xticks(1:length(P_corr_imps))
-ylabel('StD_t_h','FontSize',14)
-yticks(1:length(compStds))
-yticklabels({'0.002','0.01','0.1','0.2'})
-xticklabels({'0.01','0.07','0.1'})
-zlim([minimum,maximum])
-c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum+0.2 maximum-0.2])
+c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
+if save_plots
+    exportgraphics(gcf,fullfile('plots_PSA','MSWD_state_2_HCP_RMSE.png'),'Resolution',1000)
+end
 

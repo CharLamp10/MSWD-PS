@@ -4,15 +4,9 @@
 function COSDELPHI1 = phase_sync_analysis_HCP(imf,casee,indx,f)
 
 if casee == "MSWD"
-    if length(size(squeeze(imf))) == 3
-        COSDELPHI1 = nan(size(imf,1),size(indx,1),length(f));
-    end
+    COSDELPHI1 = nan(size(imf,1),size(indx,1),length(f));
 else
-    if length(size(squeeze(imf))) == 3
-        COSDELPHI1 = nan(size(imf,2),size(indx,1),length(f));
-    else
-        COSDELPHI1 = nan(size(imf,1),size(indx,1),length(f));
-    end
+    COSDELPHI1 = nan(size(imf,2),size(indx,1),length(f));
 end
 
 if casee == "MSWD"

@@ -5,9 +5,10 @@ clear
 clc
 close all
 
-path_data = 'E:\MSWD_paper_new';
+path_data = 'F:\MSWD_paper_new';
 
 numSubjects = 50;
+signal_length = 1200;
 visit = 'rest1';
 numICs = 100;
 indx = nchoosek(1:numICs,2);
@@ -29,14 +30,14 @@ for i = 1:length(COSDELPHI1_MSWD)
 end
 
 %% Find optimal number of clusters
-E_MVMD = evalclusters(squeeze(COSDELPHI_MVMD),'kmeans','silhouette','klist',[2:5]);
-E_MVMDs = E_MVMD;
-DBI_MVMD = E_MVMD.OptimalK;
-disp(i)
-
-E_MSWD = evalclusters(squeeze(COSDELPHI_MSWD),'kmeans','silhouette','klist',[2:5]);
-E_MSWDs = E_MSWD;
-DBI_MSWD = E_MSWD.OptimalK;
+if ~exist(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_all.mat']))
+    E_MVMD = evalclusters(squeeze(COSDELPHI_MVMD),'kmeans','silhouette','klist',[2:5]);
+    DBI_MVMD = E_MVMD.OptimalK;
+end
+if ~exist(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_all.mat']))
+    E_MSWD = evalclusters(squeeze(COSDELPHI_MSWD),'kmeans','silhouette','klist',[2:5]);
+    DBI_MSWD = E_MSWD.OptimalK;
+end
 
 %% Perform clustering and get the centroids and the clustered data
 if ~exist(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_all.mat'])) ||...
@@ -53,36 +54,29 @@ else
     load(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_all.mat']));
 end
 
-%% Calculate correlation coefficient among the 2 states for both methods
-corr_among_states_MVMD = corrcoef(mean_C_MVMD_all{1}');
-corr_among_states_MSWD = corrcoef(mean_C_MSWD_all{1}');
 
 %% Count short state transitions
 count = 1;
-for i = 1:1200:length(mean_idx_MVMD_all{1})
-    diff_states = diff(mean_idx_MVMD_all{1}(i:i+1199));
+for i = 1:signal_length:length(mean_idx_MVMD_all{1})
+    diff_states = diff(mean_idx_MVMD_all{1}(i:i+signal_length-1));
     pos = find(diff_states ~= 0);
-    pos = [1;pos;1200];
+    pos = [1;pos;signal_length];
     diff_poss = diff(pos);
-    count_0_7_MVMD(count) = sum((diff_poss>0).*(diff_poss<=7));
-    count_7_14_MVMD(count) = sum((diff_poss>7).*(diff_poss<=14));
-    count_14_21_MVMD(count) = sum((diff_poss>14).*(diff_poss<=21));
-    count_21_31_MVMD(count) = sum((diff_poss>21).*(diff_poss<=31));
-    count_0_20_MVMD(count) = sum((diff_poss>0).*(diff_poss<=20));
+    count_0_15_sec_MVMD(count) = sum((diff_poss>0).*(diff_poss<=21));
     count = count + 1;
 end
 
 count = 1;
-for i = 1:1200:length(mean_idx_MSWD_all{1})
-    diff_states = diff(mean_idx_MSWD_all{1}(i:i+1199));
+for i = 1:signal_length:length(mean_idx_MSWD_all{1})
+    diff_states = diff(mean_idx_MSWD_all{1}(i:i+signal_length-1));
     pos = find(diff_states ~= 0);
-    pos = [1;pos;1200];
+    pos = [1;pos;signal_length];
     diff_poss = diff(pos);
-    count_0_7_MSWD(count) = sum((diff_poss>0).*(diff_poss<=7));
-    count_7_14_MSWD(count) = sum((diff_poss>7).*(diff_poss<=14));
-    count_14_21_MSWD(count) = sum((diff_poss>14).*(diff_poss<=21));
+    count_0_15_sec_MSWD(count) = sum((diff_poss>0).*(diff_poss<=21));
     count = count + 1;
 end
+disp(['MVMD-PS total biologically implausible transitions: ', num2str(sum(count_0_15_sec_MVMD))])
+disp(['MSwD-PS total biologically implausible transitions: ', num2str(sum(count_0_15_sec_MSWD))])
 
 
 %% Bootstrap analysis to show that the centroids/brain states are robust
@@ -92,8 +86,8 @@ if ~exist(fullfile(path_data,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVM
         N = randperm(numSubjects,10);
         mask = zeros(size(COSDELPHI_MSWD,1),1);
         for n = N
-            start = (n-1)*1200+1;
-            endd = 1200*n;
+            start = (n-1)*signal_length+1;
+            endd = signal_length*n;
             mask(start:endd) = 1;
         end
         COSDELPHI_MVMD_btsrp = COSDELPHI_MVMD(logical(mask),:);
