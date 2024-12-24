@@ -7,14 +7,13 @@ clc
 save_res = 1;
 numICs = 100;
 visit = 'rest1';
-path_data = 'C:\Users\100063082\Desktop\MSWD_paper_files';
-path_save = 'F:\MSWD_paper_new';
+path_data = 'C:\Users\Hp\Desktop\MSWD_paper_files';
+path_save = 'C:\Users\Hp\Desktop\MSWD_paper_files';
 
-if contains(pwd,'100063082')
-    path_tmaps = fullfile(path_data,'dyn_tmap_comps_centered.nii');
-    path_hcp_average = fullfile(path_data,'HCP_PTN1200\groupICA\groupICA_3T_HCP1200_MSMAll_d100.ica\melodic_IC_sum.nii');
-    path_data = fullfile(path_data,'HCP_PTN1200\NodeTimeseries_3T_HCP1200_MSMAll_ICAd100_ts2\node_timeseries\3T_HCP1200_MSMAll_d100_ts2');
-end
+path_tmaps = fullfile(path_data,'dyn_tmap_comps_centered.nii');
+path_hcp_average = fullfile(path_data,'HCP_PTN1200\groupICA\groupICA_3T_HCP1200_MSMAll_d100.ica\melodic_IC_sum.nii');
+path_data = fullfile(path_data,'HCP_PTN1200\NodeTimeseries_3T_HCP1200_MSMAll_ICAd100_ts2\node_timeseries\3T_HCP1200_MSMAll_d100_ts2');
+
 
 tmaps = niftiread(path_tmaps);
 hcp_average = niftiread(path_hcp_average);
@@ -97,39 +96,39 @@ alphas = [500,2000,5000];
 compStds = [0.002,0.01,0.1,0.2];
 P_corr_imps = [0.01,0.07,0.1];
 
-for k = 1:length(compStds)
-    for a = 1:length(P_corr_imps)
-        for i = 1:numSubjects
-            name = names{i};
-            data = load(fullfile(path_data,name));
-            %% MSWD
-            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']))
-                data_MSWD = data(1:1200,I);
-                data_MSWD = data_MSWD./max(abs(data_MSWD));
-                p_value = 1e-5;
-                P_corr = 1;
-                P_corr_imp = P_corr_imps(a);
-                wind = [];
-                compStd = compStds(k);
-                param_struct  = struct('P_corr', P_corr, ...
-                    'P_corr_imp',   P_corr_imp,...
-                    'StD_th',       compStd, ...
-                    'Welch_window', wind, ...
-                    'p_value',      1e-5);
-                imf = MSWD(data_MSWD, param_struct);
-                imfs_MSWD{i,k,a} = imf;
-                disp(['P_corr_imp:', num2str(P_corr_imps(a)), ' compStd:', num2str(compStds(k))])
-            elseif ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']))
-                imf = resMSWD.imfs_MSWD{i,k,a};
-            end
-            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat'])) && i <= 50
-                COSDELPHI = phase_sync_analysis_HCP(imf,'MSWD',indx,...
-                     inds_MSWD);
-                COSDELPHI1_MSWD{i,k,a} = COSDELPHI;
-            end
-        end
-    end
-end
+% for k = 1:length(compStds)
+%     for a = 1:length(P_corr_imps)
+%         for i = 1:numSubjects
+%             name = names{i};
+%             data = load(fullfile(path_data,name));
+%             %% MSWD
+%             if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']))
+%                 data_MSWD = data(1:1200,I);
+%                 data_MSWD = data_MSWD./max(abs(data_MSWD));
+%                 p_value = 1e-5;
+%                 P_corr = 1;
+%                 P_corr_imp = P_corr_imps(a);
+%                 wind = [];
+%                 compStd = compStds(k);
+%                 param_struct  = struct('P_corr', P_corr, ...
+%                     'P_corr_imp',   P_corr_imp,...
+%                     'StD_th',       compStd, ...
+%                     'Welch_window', wind, ...
+%                     'p_value',      1e-5);
+%                 imf = MSWD(data_MSWD, param_struct);
+%                 imfs_MSWD{i,k,a} = imf;
+%                 disp(['P_corr_imp:', num2str(P_corr_imps(a)), ' compStd:', num2str(compStds(k))])
+%             elseif ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']))
+%                 imf = resMSWD.imfs_MSWD{i,k,a};
+%             end
+%             if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat'])) && i <= 50
+%                 COSDELPHI = phase_sync_analysis_HCP(imf,'MSWD',indx,...
+%                      inds_MSWD);
+%                 COSDELPHI1_MSWD{i,k,a} = COSDELPHI;
+%             end
+%         end
+%     end
+% end
 
 for k = 1:length(Ks)
     for a = 1:length(alphas)
@@ -158,9 +157,9 @@ if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_
             for i = 1:length(resMVMD.imfs_MVMD)
                 for j = 1:size(resMVMD.imfs_MVMD{i,k,a},1)
                     if i == 1 && j == 1
-                        [~,f_mvmd] = pwelch(squeeze(resMVMD.imfs_MVMD{i,k,a}(j,:,:)),1200,[],[],fs);
+                        [~,f_mvmd] = pwelch(squeeze(resMVMD.imfs_MVMD{i,k,a}(j,:,:)),200,[],[],fs);
                     end
-                    Px(i,j,:) = sum(pwelch(squeeze(resMVMD.imfs_MVMD{i,k,a}(j,:,:)),1200,[],[],fs),2);
+                    Px(i,j,:) = sum(pwelch(squeeze(resMVMD.imfs_MVMD{i,k,a}(j,:,:)),200,[],[],fs),2);
                 end
             end
             for i = 1:size(Px,1)
@@ -191,13 +190,13 @@ for k = 1:length(Ks)
     end
 end
 
-if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']))
-    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']),"imfs_MSWD")
-end
-
-if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']))
-    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']),'COSDELPHI1_MSWD','-v7.3')
-end
+% if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']))
+%     save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']),"imfs_MSWD")
+% end
+% 
+% if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']))
+%     save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']),'COSDELPHI1_MSWD','-v7.3')
+% end
 
 
 if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_PSA.mat']))
