@@ -33,3 +33,5 @@ In our work we used data from the following subjects:
 "0050030"
 "0050031"
 "0050032"
+
+Following, one should uzip these data and place them in separate folders. Finally, GIFT toolbox must be used to perform spatial GICA, decomposing each subject's data into spattially independent components. After that, the directory in which the results of GIFT are saved can be used as input to the real_data_application_ABIDE.m script.
