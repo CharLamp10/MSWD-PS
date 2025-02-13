@@ -10,11 +10,9 @@ visit = 'rest1';
 path_data = 'C:\Users\100063082\Desktop\MSWD_paper_files';
 path_save = 'F:\MSWD_paper_new';
 
-if contains(pwd,'100063082')
-    path_tmaps = fullfile(path_data,'dyn_tmap_comps_centered.nii');
-    path_hcp_average = fullfile(path_data,'HCP_PTN1200\groupICA\groupICA_3T_HCP1200_MSMAll_d100.ica\melodic_IC_sum.nii');
-    path_data = fullfile(path_data,'HCP_PTN1200\NodeTimeseries_3T_HCP1200_MSMAll_ICAd100_ts2\node_timeseries\3T_HCP1200_MSMAll_d100_ts2');
-end
+path_tmaps = fullfile(path_data,'dyn_tmap_comps_centered.nii');
+path_hcp_average = fullfile(path_data,'HCP_PTN1200\groupICA\groupICA_3T_HCP1200_MSMAll_d100.ica\melodic_IC_sum.nii');
+path_data = fullfile(path_data,'HCP_PTN1200\NodeTimeseries_3T_HCP1200_MSMAll_ICAd100_ts2\node_timeseries\3T_HCP1200_MSMAll_d100_ts2');
 
 tmaps = niftiread(path_tmaps);
 hcp_average = niftiread(path_hcp_average);
