@@ -4,7 +4,7 @@ close all
 
 
 %% Sim 1&2
-casee = 1;
+casee = 2;
 TR = 2;                                                   % Repetition time 
 fs = 1/TR;                                                % Sampling frequency
 t = 0:1/fs:668-1/fs;
@@ -62,6 +62,56 @@ if ~exist("plots")
     mkdir("plots")
 end
 
+%% NA-MEMD
+imfs_MEMD = cell(1,N);
+T_MEMD = zeros(1,N);
+if ~exist(fullfile("decomposed",['sim',num2str(casee),'_MEMD.mat']))
+    for m = 1:N
+        stp_crit = 'stop';
+        stp_vec = [0.5 0.5 0.5];
+        mode = 'na_snr';
+        intensity_noise = 0.75; 
+        n_channel_na = size(Data{m},2);  
+        ndir = 2*n_channel_na; 
+        tic
+        imfs = namemd(Data{m}, ndir, stp_crit, stp_vec, mode, intensity_noise, n_channel_na);
+        for i = 1:length(imfs)
+            imf(:,:,i) = imfs{i};
+        end
+        T_MEMD(m) = toc;
+        imfs_MEMD{m} = imf;
+        clear imf
+    end
+    save(fullfile("decomposed",['sim',num2str(casee),'_MEMD.mat']),"imfs_MEMD","T_MEMD")
+    disp('MEMD')
+end
+
+%% EWT
+imfs_EWT = cell(1,N);
+T_EWT = zeros(1,N);
+if ~exist(fullfile("decomposed",['sim',num2str(casee),'_EWT.mat']))
+    for m = 1:N
+        tic
+        for i = 1:size(Data{m},2)
+            temp_imf = ewt(Data{m}(:,i))';
+            mfreqs = zeros(1,size(temp_imf,1));
+            for j = 1:size(temp_imf,1)
+                mfreqs(j) = meanfreq(temp_imf(j,:),fs);
+            end
+            [~,pos] = min(abs(mfreqs - f));
+            temp = temp_imf(pos,:);
+            temp_imf(pos,:) = temp_imf(1,:);
+            temp_imf(1,:) = temp;
+            imf(:,:,i) = temp_imf;
+            clear temp_imf
+        end
+        T_EWT(m) = toc;
+        imfs_EWT{m} = imf;
+        clear imf
+    end
+    save(fullfile("decomposed",['sim',num2str(casee),'_EWT.mat']),"imfs_EWT","T_EWT")
+    disp('EWT')
+end
 
 %% MVMD
 imfs_MVMD = cell(1,N);
@@ -80,7 +130,7 @@ if ~exist(fullfile("decomposed",['sim',num2str(casee),'_MVMD.mat']))
 end
 
 
-%% MSWD-CL
+%% MSWD
 imfs_MSWD = cell(1,N);
 corrs = cell(1,N);
 T_MSWD = zeros(1,N);

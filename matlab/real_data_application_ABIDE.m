@@ -5,8 +5,8 @@ save_res = 1;
 numICs = 100;
 
 path_tmaps = 'C:\Users\100063082\Desktop\MSWD_paper_files\dyn_tmap_comps_centered.nii';
-path_hcp_average = 'C:\Users\100063082\Desktop\MSWD_paper_files\GICA\GICA_agg__component_ica_.nii';
-path_data = 'C:\Users\100063082\Desktop\MSWD_paper_files\GICA';
+path_hcp_average = 'C:\Users\100063082\Desktop\MSWD_paper_files\GICA_ABIDE\GICA_agg__component_ica_.nii';
+path_data = 'C:\Users\100063082\Desktop\MSWD_paper_files\GICA_ABIDE';
 
 tmaps = niftiread(path_tmaps);
 hcp_average = niftiread(path_hcp_average);
@@ -71,7 +71,7 @@ imfs_MSWD = cell(1,numSubjects);
 imfs_MVMD = cell(1,numSubjects);
 
 if exist(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\MSWD_ABIDE_',num2str(numSubjects),'_subjects.mat'])
-    resMSWD = load(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\MSWD_ABIDE_',num2str(numSubjects),'_subjects.mat']);
+    resMSWD = load(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_',casee,'\MSWD_',casee,'_',num2str(numSubjects),'_subjects.mat']);
 end
 if exist(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\MVMD_ABIDE_',num2str(numSubjects),'_subjects.mat'])
     resMVMD = load(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\MVMD_ABIDE_',num2str(numSubjects),'_subjects.mat']);
@@ -99,15 +99,14 @@ for i = 1:numSubjects
             'StD_th',       compStd, ...
             'Welch_window', wind, ...
             'p_value',      1e-5);
-        imf = MSWD_CL(data_MSWD, param_struct);
+        imf = MSWD(data_MSWD, param_struct);
         imfs_MSWD{i} = imf;
         disp(i)
     elseif ~exist(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\COSDELPHI_MSWD_',num2str(numSubjects),'_subjects.mat'])
         imf = resMSWD.imfs_MSWD{i};
     end
-    if ~exist(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE','\COSDELPHI_MSWD_',num2str(numSubjects),'_subjects.mat'])
-        COSDELPHI = phase_sync_analysis_HCP(imf,'MSWD',indx,...
-             fs,inds_MSWD,min_freq);
+    if ~exist(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\COSDELPHI_MSWD_',num2str(numSubjects),'_subjects.mat'])
+        COSDELPHI = phase_sync_analysis_HCP(imf,'MSWD',indx,inds_MSWD);
         COSDELPHI1_MSWD{i} = COSDELPHI;
     end
 end
@@ -134,9 +133,9 @@ if ~exist(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\COSDELPHI_MVMD_',nu
     for i = 1:length(resMVMD.imfs_MVMD)
         for j = 1:size(resMVMD.imfs_MVMD{i},1)
             if i == 1 && j == 1
-                [~,f_mvmd] = pwelch(squeeze(resMVMD.imfs_MVMD{i}(j,:,:)),200,[],[],fs);
+                [~,f_mvmd] = pwelch(squeeze(resMVMD.imfs_MVMD{i}(j,:,:)),size(data,1),[],[],fs);
             end
-            Px(i,j,:) = sum(pwelch(squeeze(resMVMD.imfs_MVMD{i}(j,:,:)),200,[],[],fs),2);
+            Px(i,j,:) = sum(pwelch(squeeze(resMVMD.imfs_MVMD{i}(j,:,:)),size(data,1),[],[],fs),2);
         end
     end
     for i = 1:size(Px,1)
@@ -155,8 +154,7 @@ if ~exist(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\COSDELPHI_MVMD_',nu
 end
 for i = 1:numSubjects
     if ~exist(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\COSDELPHI_MVMD_',num2str(numSubjects),'_subjects.mat'])
-        COSDELPHI = phase_sync_analysis_HCP(resMVMD.imfs_MVMD{i},'MVMD',indx,...
-             fs,inds_MVMD,min_freq);
+        COSDELPHI = phase_sync_analysis_HCP(resMVMD.imfs_MVMD{i},'MVMD',indx,inds_MVMD);
         COSDELPHI1_MVMD{i} = COSDELPHI;
     end
 end

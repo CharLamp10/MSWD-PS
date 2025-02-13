@@ -4,7 +4,7 @@
 clear
 clc
 
-save_plots = false;
+save_plots = true;
 save_res = 1;
 numICs = 100;
 visit = 'rest1';
@@ -74,10 +74,20 @@ min_freq = 0.01;
 
 numSubjects = 50;
 
-if exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']))
+if exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MEMD_HCP_PSA.mat'])) &&...
+        ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MEMD_PSA.mat']))
+    resMEMD = load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MEMD_HCP_PSA.mat']));
+end
+if exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\EWT_HCP_PSA.mat'])) &&...
+        ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_EWT_PSA.mat']))
+    resEWT = load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\EWT_HCP_PSA.mat']));
+end
+if exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat'])) &&...
+        ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_PSA.mat']))
     resMSWD = load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']));
 end
-if exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_PSA.mat']))
+if exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_PSA.mat'])) &&...
+        ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']))
     resMVMD = load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_PSA.mat']));
 end
 
@@ -85,56 +95,132 @@ load("names_98_subjects.mat");
 
 
 inds_MSWD = [1]; %In MSWD we get always the first component
+inds_MEMD = [1]; %We force the component with the maximum spectral peak within the [0.01,0.1] Hz band to be at the first index
+inds_EWT = [1]; %We force the component with the maximum spectral peak within the [0.01,0.1] Hz band to be at the first index
+for i = 1:numSubjects
+    name = names{i};
+    data = load(fullfile(path_data,name));
+    data = data(1:1200,I);
+    data = data./max(abs(data));
+    if i == 1
+        [~,f] = pwelch(data,size(data,1)/2,[],[],fs);
+    end
+    Px = mean(pwelch(data,size(data,1)/2,[],[],fs),2);
+    [~,pos_max] = max(Px);
+    f_EWT(i) = f(pos_max);
+end
 
 indx = nchoosek(1:numICs,2);
 
+stop_vecs = {[0.075,0.75,0.075],[0.2,0.8,0.2],[0.3,0.3,0.3],[0.5,0.5,0.5]};
+ndirs = [0.05,0.10,0.2];
+P_ths = [0.1,0.3,0.5,0.8];
+freq_ress = [0.08,0.16,0.25];
 Ks = 1:2:7;
 alphas = [500,2000,5000];
 compStds = [0.002,0.01,0.1,0.2];
 P_corr_imps = [0.01,0.07,0.1];
 
+imfs_MEMD = cell(numSubjects,length(stop_vecs),length(ndirs));
+imfs_EWT = cell(numSubjects,length(P_ths),length(freq_ress));
 imfs_MSWD = cell(numSubjects,length(compStds),length(P_corr_imps));
 imfs_MVMD = cell(numSubjects,length(Ks),length(alphas));
 
-for k = 1:length(compStds)
-    for a = 1:length(P_corr_imps)
+%% MEMD
+for k = 1:length(stop_vecs)
+    for a = 1:length(ndirs)
         for i = 1:numSubjects
-            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']))
-                %% MSWD
+            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MEMD_HCP_PSA.mat']))
                 name = names{i};
                 data = load(fullfile(path_data,name));
-                data_MSWD = data(1:1200,I);
-                data_MSWD = data_MSWD./max(abs(data_MSWD));
-                p_value = 1e-5;
-                P_corr = 1;
-                P_corr_imp = P_corr_imps(a);
-                wind = [];
-                compStd = compStds(k);
-                param_struct  = struct('P_corr', P_corr, ...
-                    'P_corr_imp',   P_corr_imp,...
-                    'StD_th',       compStd, ...
-                    'Welch_window', wind, ...
-                    'p_value',      1e-5);
-                imf = MSWD(data_MSWD, param_struct);
-                imfs_MSWD{i,k,a} = imf;
-                disp(['P_corr_imp:', num2str(P_corr_imps(a)), ' compStd:', num2str(compStds(k))])
-            elseif ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']))
-                imf = resMSWD.imfs_MSWD{i,k,a};
+                data_MEMD = data(1:1200,I);
+                data_MEMD = data_MEMD./max(abs(data_MEMD));
+                stop_vec = stop_vecs{k};
+                ndir = ndirs(a);
+                stp_crit = 'stop';
+                mode = 'na_snr';
+                intensity_noise = 0.75; 
+                n_channel_na = size(data_MEMD,2);  
+                ndirr = ndir*n_channel_na;
+                imfs = namemd(data_MEMD, ndirr, stp_crit, stop_vec, mode, intensity_noise, n_channel_na);
+                for j = 1:length(imfs)
+                    imf(:,:,j) = imfs{j};
+                end
+                for j = 1:size(imf,1)
+                    p(:,j) = mean(pwelch(squeeze(imf(j,:,:)),size(imf,2),[],[],fs),2);
+                end
+                f = pwelch(squeeze(imf(1,:,1)),size(imf,2),[],[],fs);
+                [maxs,pos_maxs] = max(p);
+                clear p
+                maxi = 0;
+                for j = 1:length(maxs)
+                    if maxs(j)> maxi && f(pos_maxs(j)) >= 0.01 && f(pos_maxs(j)) <= 0.1
+                        maxi = maxs(j);
+                    end
+                end
+                pos_max = find(maxs == maxi);
+                temp = imf(1,:,:);
+                imf(1,:,:) = imf(pos_max,:,:);
+                imf(pos_max,:,:) = temp;
+                imfs_MEMD{i,k,a} = imf;
+                disp(['ndir:', num2str(ndirs(a)), ' stop_vec:', num2str(stop_vecs{k})])
+            elseif ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MEMD_PSA.mat']))
+                imf = resMEMD.imfs_MEMD{i,k,a};
             end
-            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat'])) && i <= 50
-                COSDELPHI = phase_sync_analysis_HCP(imf,'MSWD',indx,...
-                     inds_MSWD);
-                COSDELPHI1_MSWD{i,k,a} = COSDELPHI;
+            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MEMD_PSA.mat']))
+                COSDELPHI = phase_sync_analysis_HCP(imf,'MVMD',indx,inds_MSWD);
+                COSDELPHI1_MEMD{i,k,a} = COSDELPHI;
             end
+            clear imf
         end
     end
 end
 
+%% EWT
+for k = 1:length(P_ths)
+    for a = 1:length(freq_ress)
+        for i = 1:numSubjects
+            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\EWT_HCP_PSA.mat']))
+                name = names{i};
+                data = load(fullfile(path_data,name));
+                data_EWT = data(1:1200,I);
+                data_EWT = data_EWT./max(abs(data_EWT));
+                P_th = P_ths(k);
+                freq_res = freq_ress(a);
+                imf = zeros(20,size(data_EWT,1),size(data_EWT,2));
+                for j = 1:size(data_EWT,2)
+                    temp_imf = ewt(data_EWT(:,j),"PeakThresholdPercent",P_th,"FrequencyResolution",freq_res)';
+                    mfreqs = zeros(1,size(temp_imf,1));
+                    for n = 1:size(temp_imf,1)
+                        mfreqs(n) = meanfreq(temp_imf(n,:),fs);
+                    end
+                    [~,pos] = min(abs(mfreqs - f_EWT(i)));
+                    temp = temp_imf(pos,:);
+                    temp_imf(pos,:) = temp_imf(1,:);
+                    temp_imf(1,:) = temp;
+                    imf(1:size(temp_imf,1),:,j) = temp_imf;
+                    clear temp_imf
+                end
+                imf(all(all(imf == 0,3),2),:,:) = [];
+                imfs_EWT{i,k,a} = imf;
+                disp(['P_th:', num2str(P_ths(k)), ' freq_res:', num2str(freq_ress(a))])
+            elseif ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_EWT_PSA.mat']))
+                imf = resEWT.imfs_EWT{i,k,a};
+            end
+            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_EWT_PSA.mat']))
+                COSDELPHI = phase_sync_analysis_HCP(imf,'MVMD',indx,inds_EWT);
+                COSDELPHI1_EWT{i,k,a} = COSDELPHI;
+            end
+            clear imf
+        end
+    end
+end
+
+%% MVMD
 for k = 1:length(Ks)
     for a = 1:length(alphas)
         for i = 1:numSubjects
             if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_PSA.mat']))
-                %% MVMD
                 name = names{i};
                 data = load(fullfile(path_data,name));
                 data_MVMD = data(1:1200,I);
@@ -183,8 +269,7 @@ if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_
         for a = 1:length(alphas)
             for i = 1:numSubjects
                 if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_PSA.mat']))
-                    COSDELPHI = phase_sync_analysis_HCP(resMVMD.imfs_MVMD{i,k,a},'MVMD',indx,...
-                         inds_MVMD(k,a));
+                    COSDELPHI = phase_sync_analysis_HCP(resMVMD.imfs_MVMD{i,k,a},'MVMD',indx,inds_MVMD(k,a));
                     COSDELPHI1_MVMD{i,k,a} = COSDELPHI;
                 end
             end
@@ -192,67 +277,185 @@ if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_
     end
 end
 
+%% MSWD
+for k = 1:length(compStds)
+    for a = 1:length(P_corr_imps)
+        for i = 1:numSubjects
+            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']))
+                name = names{i};
+                data = load(fullfile(path_data,name));
+                data_MSWD = data(1:1200,I);
+                data_MSWD = data_MSWD./max(abs(data_MSWD));
+                p_value = 1e-5;
+                P_corr = 1;
+                P_corr_imp = P_corr_imps(a);
+                wind = [];
+                compStd = compStds(k);
+                param_struct  = struct('P_corr', P_corr, ...
+                    'P_corr_imp',   P_corr_imp,...
+                    'StD_th',       compStd, ...
+                    'Welch_window', wind, ...
+                    'p_value',      1e-5);
+                imf = MSWD(data_MSWD, param_struct);
+                imfs_MSWD{i,k,a} = imf;
+                disp(['P_corr_imp:', num2str(P_corr_imps(a)), ' compStd:', num2str(compStds(k))])
+            elseif ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']))
+                imf = resMSWD.imfs_MSWD{i,k,a};
+            end
+            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']))
+                COSDELPHI = phase_sync_analysis_HCP(imf,'MSWD',indx,inds_MSWD);
+                COSDELPHI1_MSWD{i,k,a} = COSDELPHI;
+            end
+        end
+    end
+end
+
+
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MEMD_HCP_PSA.mat']))
+    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MEMD_HCP_PSA.mat']),"imfs_MEMD",'-v7.3')
+end
+
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\EWT_HCP_PSA.mat']))
+    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\EWT_HCP_PSA.mat']),"imfs_EWT")
+end
+
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_PSA.mat']))
+    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_PSA.mat']),"imfs_MVMD")
+end
+
 if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']))
     save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MSWD_HCP_PSA.mat']),"imfs_MSWD")
+end
+
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MEMD_PSA.mat']))
+    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MEMD_PSA.mat']),'COSDELPHI1_MEMD','-v7.3')
+end
+
+if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_EWT_PSA.mat']))
+    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_EWT_PSA.mat']),'COSDELPHI1_EWT','-v7.3')
 end
 
 if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']))
     save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']),'COSDELPHI1_MSWD','-v7.3')
 end
 
-
-if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_PSA.mat']))
-    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\MVMD_HCP_PSA.mat']),"imfs_MVMD")
-end
-
 if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_PSA.mat']))
     save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_PSA.mat']),'COSDELPHI1_MVMD','-v7.3')
 end
 
-if ~exist('COSDELPHI1_MSWD','var')
-    load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']))
+if ~exist('COSDELPHI1_MEMD','var') && ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MEMD_PSA.mat']))
+    load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MEMD_PSA.mat']))
 end
-if ~exist('COSDELPHI1_MVMD','var')
+if ~exist('COSDELPHI1_EWT','var') && ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_EWT_PSA.mat']))
+    load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_EWT_PSA.mat']))
+end
+if ~exist('COSDELPHI1_MVMD','var') && ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat']))
     load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MVMD_PSA.mat']))
 end
+if ~exist('COSDELPHI1_MSWD','var') && ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']))
+    load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\COSDELPHI_MSWD_PSA.mat']))
+end
 
-
+DBI_MEMD = 2;
+DBI_EWT = 2;
 DBI_MVMD = 2;
 DBI_MSWD = 2;
-if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat'])) ||...
-            ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']))
+ if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MEMD_PSA.mat'])) ||...
+      ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_EWT_PSA.mat'])) ||...
+       ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat'])) ||...
+        ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']))
     for k = 1:length(Ks)
         for a = 1:length(alphas)
             for i = 1:length(COSDELPHI1_MSWD)
                 if i == 1
+                    COSDELPHI_MEMD = COSDELPHI1_MEMD{i,k,a};
+                    COSDELPHI_EWT = COSDELPHI1_EWT{i,k,a};
                     COSDELPHI_MSWD = COSDELPHI1_MSWD{i,k,a};
                     COSDELPHI_MVMD = COSDELPHI1_MVMD{i,k,a};
                 else
+                    COSDELPHI_MEMD = cat(1,COSDELPHI_MEMD,COSDELPHI1_MEMD{i,k,a});
+                    COSDELPHI_EWT = cat(1,COSDELPHI_EWT,COSDELPHI1_EWT{i,k,a});
                     COSDELPHI_MSWD = cat(1,COSDELPHI_MSWD,COSDELPHI1_MSWD{i,k,a});
                     COSDELPHI_MVMD = cat(1,COSDELPHI_MVMD,COSDELPHI1_MVMD{i,k,a});
                 end
             end
-        
-            [~,C_init_MVMD,sumd_MVMD] = kmeans(squeeze(COSDELPHI_MVMD),DBI_MVMD,'MaxIter',150,'Start','sample','Replicates',10); % replicates default 200, MaxIter 150, replicates 10
-            [mean_idx_MVMD_psa{k,a},mean_C_MVMD_psa{k,a}] = kmeans(squeeze(COSDELPHI_MVMD),DBI_MVMD,'MaxIter',500,'Start',C_init_MVMD); %1000 default
-            
-            [~,C_init_MSWD,sumd_MSWD] = kmeans(squeeze(COSDELPHI_MSWD),DBI_MSWD,'MaxIter',150,'Start','sample','Replicates',10); % replicates default 200, MaxIter 150, replicates 10
-            [mean_idx_MSWD_psa{k,a},mean_C_MSWD_psa{k,a}] = kmeans(squeeze(COSDELPHI_MSWD),DBI_MSWD,'MaxIter',500,'Start',C_init_MSWD); %1000 default
+            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MEMD_PSA.mat']))
+                [~,C_init_MEMD,sumd_MEMD] = kmeans(squeeze(COSDELPHI_MEMD),DBI_MEMD,'MaxIter',150,'Start','sample','Replicates',10); % replicates default 200, MaxIter 150, replicates 10
+                [mean_idx_MEMD_psa{k,a},mean_C_MEMD_psa{k,a}] = kmeans(squeeze(COSDELPHI_MEMD),DBI_MEMD,'MaxIter',500,'Start',C_init_MEMD); %1000 default
+            end
+            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_EWT_PSA.mat']))
+                [~,C_init_EWT,sumd_EWT] = kmeans(squeeze(COSDELPHI_EWT),DBI_EWT,'MaxIter',150,'Start','sample','Replicates',10); % replicates default 200, MaxIter 150, replicates 10
+                [mean_idx_EWT_psa{k,a},mean_C_EWT_psa{k,a}] = kmeans(squeeze(COSDELPHI_EWT),DBI_EWT,'MaxIter',500,'Start',C_init_EWT); %1000 default
+            end
+            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat']))
+                [~,C_init_MVMD,sumd_MVMD] = kmeans(squeeze(COSDELPHI_MVMD),DBI_MVMD,'MaxIter',150,'Start','sample','Replicates',10); % replicates default 200, MaxIter 150, replicates 10
+                [mean_idx_MVMD_psa{k,a},mean_C_MVMD_psa{k,a}] = kmeans(squeeze(COSDELPHI_MVMD),DBI_MVMD,'MaxIter',500,'Start',C_init_MVMD); %1000 default
+            end
+            if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']))
+                [~,C_init_MSWD,sumd_MSWD] = kmeans(squeeze(COSDELPHI_MSWD),DBI_MSWD,'MaxIter',150,'Start','sample','Replicates',10); % replicates default 200, MaxIter 150, replicates 10
+                [mean_idx_MSWD_psa{k,a},mean_C_MSWD_psa{k,a}] = kmeans(squeeze(COSDELPHI_MSWD),DBI_MSWD,'MaxIter',500,'Start',C_init_MSWD); %1000 default
+            end
             disp(['k = ', num2str(k), ', a = ', num2str(a)])
         end
     end
-    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat']),'mean_C_MVMD_psa','mean_idx_MVMD_psa');
-    save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']),'mean_C_MSWD_psa','mean_idx_MSWD_psa');
-else
-    load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat']));
-    load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']));
+    if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MEMD_PSA.mat']))
+        save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MEMD_PSA.mat']),'mean_C_MEMD_psa','mean_idx_MEMD_psa');
+    end
+    if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_EWT_PSA.mat']))
+        save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_EWT_PSA.mat']),'mean_C_EWT_psa','mean_idx_EWT_psa');
+    end
+    if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat']))
+        save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat']),'mean_C_MVMD_psa','mean_idx_MVMD_psa');
+    end
+    if ~exist(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']))
+        save(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']),'mean_C_MSWD_psa','mean_idx_MSWD_psa');
+    end
+ else
+    if ~exist("mean_idx_MEMD_psa")
+        load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MEMD_PSA.mat']));
+    end
+    if ~exist("mean_idx_EWT_psa")
+        load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_EWT_PSA.mat']));
+    end
+    if ~exist("mean_idx_MVMD_psa")
+        load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MVMD_PSA.mat']));
+    end
+    if ~exist("mean_idx_MSWD_psa")
+        load(fullfile(path_save,['MSWD_CL_paper_decomposed_HCP_',visit,'\mean_C_MSWD_PSA.mat']));
+    end
 end
 
+load(fullfile(path_save,'MSWD_CL_paper_decomposed_HCP_rest1\mean_C_MEMD_all.mat'))
+load(fullfile(path_save,'MSWD_CL_paper_decomposed_HCP_rest1\mean_C_EWT_all.mat'))
 load(fullfile(path_save,'MSWD_CL_paper_decomposed_HCP_rest1\mean_C_MVMD_all.mat'))
 load(fullfile(path_save,'MSWD_CL_paper_decomposed_HCP_rest1\mean_C_MSWD_all.mat'))
 
 for k = 1:length(Ks)
     for a = 1:length(alphas)
+        r1 = rmse(mean_C_MEMD_psa{k,a}(1,:),mean_C_MEMD_all{1}(1,:));
+        r2 = rmse(mean_C_MEMD_psa{k,a}(2,:),mean_C_MEMD_all{1}(2,:));
+        r3 = rmse(mean_C_MEMD_psa{k,a}(1,:),mean_C_MEMD_all{1}(2,:));
+        r4 = rmse(mean_C_MEMD_psa{k,a}(2,:),mean_C_MEMD_all{1}(1,:));
+        if r1 + r2 < r3 + r4
+            corrs_MEMD(k,a,1) = r1;
+            corrs_MEMD(k,a,2) = r2;
+        else
+            corrs_MEMD(k,a,1) = r4;
+            corrs_MEMD(k,a,2) = r3;
+        end
+
+        r1 = rmse(mean_C_EWT_psa{k,a}(1,:),mean_C_EWT_all{1}(1,:));
+        r2 = rmse(mean_C_EWT_psa{k,a}(2,:),mean_C_EWT_all{1}(2,:));
+        r3 = rmse(mean_C_EWT_psa{k,a}(1,:),mean_C_EWT_all{1}(2,:));
+        r4 = rmse(mean_C_EWT_psa{k,a}(2,:),mean_C_EWT_all{1}(1,:));
+        if r1 + r2 < r3 + r4
+            corrs_EWT(k,a,1) = r1;
+            corrs_EWT(k,a,2) = r2;
+        else
+            corrs_EWT(k,a,1) = r4;
+            corrs_EWT(k,a,2) = r3;
+        end
+
         r1 = rmse(mean_C_MVMD_psa{k,a}(1,:),mean_C_MVMD_all{1}(1,:));
         r2 = rmse(mean_C_MVMD_psa{k,a}(2,:),mean_C_MVMD_all{1}(2,:));
         r3 = rmse(mean_C_MVMD_psa{k,a}(1,:),mean_C_MVMD_all{1}(2,:));
@@ -279,38 +482,39 @@ for k = 1:length(Ks)
     end
 end
 
+%% MVMD-MSWD
 minimum = min([min(corrs_MVMD(:,:,1),[],"all"),min(corrs_MSWD(:,:,1),[],"all")]);
 maximum = max([max(corrs_MVMD(:,:,1),[],"all"),max(corrs_MSWD(:,:,1),[],"all")]);
 
 figure
-surf(Ks,1:length(alphas),corrs_MVMD(:,:,1)');
+surf(1:length(alphas),Ks,corrs_MVMD(:,:,1));
 ax = gca;
 ax.FontSize = 12;
-xlabel('K','FontSize',14)
-xticks(Ks)
-ylabel('alpha','FontSize',14)
-yticks(1:length(alphas))
-yticklabels({'500','2000','5000'})
+ylabel('K','FontSize',14)
+yticks(Ks)
+xlabel('alpha','FontSize',14)
+xticks(1:length(alphas))
+xticklabels({'500','2000','5000'})
 zlim([minimum,maximum])
 c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
 if save_plots
-    exportgraphics(gcf,fullfile('plots_PSA','MVMD_state_1_HCP_RMSE.png'),'Resolution',1000)
+    exportgraphics(gcf,fullfile('plots_PSA_new','MVMD_state_1_HCP_RMSE.png'),'Resolution',1000)
 end
 
 figure
-surf(1:length(P_corr_imps),1:length(compStds),corrs_MSWD(:,:,1));
+surf(1:length(compStds),1:length(P_corr_imps),corrs_MSWD(:,:,1)');
 ax = gca;
 ax.FontSize = 12;
-xlabel('Corr_t_h','FontSize',14)
-xticks(1:length(P_corr_imps))
-ylabel('StD_t_h','FontSize',14)
-yticks(1:length(compStds))
-yticklabels({'0.002','0.01','0.1','0.2'})
-xticklabels({'0.01','0.07','0.1'})
+ylabel('Corr_t_h','FontSize',14)
+yticks(1:length(P_corr_imps))
+xlabel('StD_t_h','FontSize',14)
+xticks(1:length(compStds))
+xticklabels({'0.002','0.01','0.1','0.2'})
+yticklabels({'0.01','0.07','0.1'})
 zlim([minimum,maximum])
 c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
 if save_plots
-    exportgraphics(gcf,fullfile('plots_PSA','MSWD_state_1_HCP_RMSE.png'),'Resolution',1000)
+    exportgraphics(gcf,fullfile('plots_PSA_new','MSWD_state_1_HCP_RMSE.png'),'Resolution',1000)
 end
 
 
@@ -318,34 +522,174 @@ minimum = min([min(corrs_MVMD(:,:,2),[],"all"),min(corrs_MSWD(:,:,2),[],"all")])
 maximum = max([max(corrs_MVMD(:,:,2),[],"all"),max(corrs_MSWD(:,:,2),[],"all")]);
 
 figure
-surf(Ks,1:length(alphas),corrs_MVMD(:,:,2)');
+surf(1:length(alphas),Ks,corrs_MVMD(:,:,2));
 ax = gca;
 ax.FontSize = 12;
-xlabel('K','FontSize',14)
-xticks(Ks)
-ylabel('alpha','FontSize',14)
-yticks(1:length(alphas))
-yticklabels({'500','2000','5000'})
+ylabel('K','FontSize',14)
+yticks(Ks)
+xlabel('alpha','FontSize',14)
+xticks(1:length(alphas))
+xticklabels({'500','2000','5000'})
 zlim([minimum,maximum])
 c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
 if save_plots
-    exportgraphics(gcf,fullfile('plots_PSA','MVMD_state_2_HCP_RMSE.png'),'Resolution',1000)
+    exportgraphics(gcf,fullfile('plots_PSA_new','MVMD_state_2_HCP_RMSE.png'),'Resolution',1000)
 end
 
 
 figure
-surf(1:length(P_corr_imps),1:length(compStds),corrs_MSWD(:,:,2));
+surf(1:length(compStds),1:length(P_corr_imps),corrs_MSWD(:,:,2)');
 ax = gca;
 ax.FontSize = 12;
-xlabel('Corr_t_h','FontSize',14)
-xticks(1:length(P_corr_imps))
-ylabel('StD_t_h','FontSize',14)
-yticks(1:length(compStds))
-yticklabels({'0.002','0.01','0.1','0.2'})
-xticklabels({'0.01','0.07','0.1'})
+ylabel('Corr_t_h','FontSize',14)
+yticks(1:length(P_corr_imps))
+xlabel('StD_t_h','FontSize',14)
+xticks(1:length(compStds))
+xticklabels({'0.002','0.01','0.1','0.2'})
+yticklabels({'0.01','0.07','0.1'})
 zlim([minimum,maximum])
 c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
 if save_plots
-    exportgraphics(gcf,fullfile('plots_PSA','MSWD_state_2_HCP_RMSE.png'),'Resolution',1000)
+    exportgraphics(gcf,fullfile('plots_PSA_new','MSWD_state_2_HCP_RMSE.png'),'Resolution',1000)
+end
+
+
+
+%% MEMD-EWT-MVMD-MSWD
+minimum = min([min(corrs_MEMD(:,:,1),[],"all"),min(corrs_EWT(:,:,1),[],"all"),min(corrs_MVMD(:,:,1),[],"all"),min(corrs_MSWD(:,:,1),[],"all")]);
+maximum = max([max(corrs_MEMD(:,:,1),[],"all"),max(corrs_EWT(:,:,1),[],"all"),max(corrs_MVMD(:,:,1),[],"all"),max(corrs_MSWD(:,:,1),[],"all")]);
+
+figure
+surf(1:length(ndirs),1:length(stop_vecs),corrs_MEMD(:,:,1));
+ax = gca;
+ax.FontSize = 12;
+xlabel('$p$','Interpreter','latex','FontSize',18)
+yticks(1:length(stop_vecs))
+yticklabels({'[0.075,0.75,0.075]','[0.2,0.9,0.2]','[0.3,0.3,0.3]','[0.5,0.5,0.5]'})
+ylabel('[$sd_1$,$sd_2$,$tol$]','Interpreter','latex','FontSize',18)
+xticks(1:length(ndirs))
+xticklabels({'5','10','20'})
+zlim([minimum,maximum])
+c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
+if save_plots
+    exportgraphics(gcf,fullfile('plots_PSA_new','MEMD_state_1_HCP_RMSE.png'),'Resolution',1000)
+end
+
+figure
+surf(1:length(freq_ress),1:length(P_ths),corrs_EWT(:,:,1));
+ax = gca;
+ax.FontSize = 12;
+ylabel('P_t_h','FontSize',14)
+yticks(1:length(P_ths))
+xlabel('freqRes','FontSize',14)
+xticks(1:length(freq_ress))
+xticklabels({'0.08','0.16','0.25'}) 
+yticklabels({'0.1','0.3','0.5','0.8'})
+zlim([minimum,maximum])
+c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
+if save_plots
+    exportgraphics(gcf,fullfile('plots_PSA_new','EWT_state_1_HCP_RMSE.png'),'Resolution',1000)
+end
+
+figure
+surf(1:length(alphas),Ks,corrs_MVMD(:,:,1));
+ax = gca;
+ax.FontSize = 12;
+ylabel('K','FontSize',14)
+yticks(Ks)
+xlabel('alpha','FontSize',14)
+xticks(1:length(alphas))
+xticklabels({'500','2000','5000'})
+zlim([minimum,maximum])
+c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
+if save_plots
+    exportgraphics(gcf,fullfile('plots_PSA_new','MVMD_all_state_1_HCP_RMSE.png'),'Resolution',1000)
+end
+
+figure
+surf(1:length(compStds),1:length(P_corr_imps),corrs_MSWD(:,:,1)');
+ax = gca;
+ax.FontSize = 12;
+ylabel('Corr_t_h','FontSize',14)
+yticks(1:length(P_corr_imps))
+xlabel('StD_t_h','FontSize',14)
+xticks(1:length(compStds))
+xticklabels({'0.002','0.01','0.1','0.2'})
+yticklabels({'0.01','0.07','0.1'})
+zlim([minimum,maximum])
+c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
+if save_plots
+    exportgraphics(gcf,fullfile('plots_PSA_new','MSWD_all_state_1_HCP_RMSE.png'),'Resolution',1000)
+end
+
+
+minimum = min([min(corrs_MEMD(:,:,2),[],"all"),min(corrs_EWT(:,:,2),[],"all"),min(corrs_MVMD(:,:,2),[],"all"),min(corrs_MSWD(:,:,2),[],"all")]);
+maximum = max([max(corrs_MEMD(:,:,2),[],"all"),max(corrs_EWT(:,:,2),[],"all"),max(corrs_MVMD(:,:,2),[],"all"),max(corrs_MSWD(:,:,2),[],"all")]);
+
+figure
+surf(1:length(ndirs),1:length(stop_vecs),corrs_MEMD(:,:,2));
+ax = gca;
+ax.FontSize = 12;
+xlabel('$p$','Interpreter','latex','FontSize',18)
+yticks(1:length(stop_vecs))
+yticklabels({'[0.075,0.75,0.075]','[0.2,0.9,0.2]','[0.3,0.3,0.3]','[0.5,0.5,0.5]'})
+ylabel('[$sd_1$,$sd_2$,$tol$]','Interpreter','latex','FontSize',18)
+xticks(1:length(ndirs))
+xticklabels({'5','10','20'})
+zlim([minimum,maximum])
+c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
+if save_plots
+    exportgraphics(gcf,fullfile('plots_PSA_new','MEMD_state_2_HCP_RMSE.png'),'Resolution',1000)
+end
+
+
+figure
+surf(1:length(freq_ress),1:length(P_ths),corrs_EWT(:,:,2));
+ax = gca;
+ax.FontSize = 12;
+ylabel('P_t_h','FontSize',14)
+yticks(1:length(P_ths))
+xlabel('freqRes','FontSize',14)
+xticks(1:length(freq_ress))
+xticklabels({'0.08','0.16','0.25'}) 
+yticklabels({'0.1','0.3','0.5','0.8'})
+zlim([minimum,maximum])
+c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
+if save_plots
+    exportgraphics(gcf,fullfile('plots_PSA_new','EWT_state_2_HCP_RMSE.png'),'Resolution',1000)
+end
+
+
+
+figure
+surf(1:length(alphas),Ks,corrs_MVMD(:,:,2));
+ax = gca;
+ax.FontSize = 12;
+ylabel('K','FontSize',14)
+yticks(Ks)
+xlabel('alpha','FontSize',14)
+xticks(1:length(alphas))
+xticklabels({'500','2000','5000'})
+zlim([minimum-0.01,maximum])
+c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
+if save_plots
+    exportgraphics(gcf,fullfile('plots_PSA_new','MVMD_all_state_2_HCP_RMSE.png'),'Resolution',1000)
+end
+
+
+figure
+surf(1:length(compStds),1:length(P_corr_imps),corrs_MSWD(:,:,2)');
+ax = gca;
+ax.FontSize = 12;
+ylabel('Corr_t_h','FontSize',14)
+yticks(1:length(P_corr_imps))
+xlabel('StD_t_h','FontSize',14)
+xticks(1:length(compStds))
+xticklabels({'0.002','0.01','0.1','0.2'})
+yticklabels({'0.01','0.07','0.1'})
+zlim([minimum,maximum])
+c=colorbar('Position',[1 0.001 0.001 0.01]); caxis([minimum maximum])
+if save_plots
+    exportgraphics(gcf,fullfile('plots_PSA_new','MSWD_all_state_2_HCP_RMSE.png'),'Resolution',1000)
 end
 

@@ -44,7 +44,7 @@ subplot(3,1,2);plot(t,phi2, 'r', 'LineWidth', 1.5);ylim([-1.3*pi 1.3*pi]); xline
 subplot(3,1,3);plot(t,phi3, 'b', 'LineWidth', 1.5);ylim([-1.3*pi 1.3*pi]); xline(100,'-- k'); xline(250,'-- k'); xline(300,'-- k'); xline(500,'-- k'); xline(500,'-- k');xline(600,'-- k'); xline(800,'-- k');
 xlabel('Time (sec)','FontSize',12)
 subplot(3,1,1);%title('Ground truth phases of the signals to generate multivariate signal')
-exportgraphics(gcf, fullfile(pwd,'plots','Ground_truth_phases.png'),'Resolution',600)
+exportgraphics(gcf, fullfile(pwd,'plots_new','Ground_truth_phases.png'),'Resolution',600)
 
 figure; subplot(3,1,1);plot(t,cos(phi1-phi2), 'k', 'LineWidth', 1.5); hold on; ylim([-2 2]); %xline(100,'-- k'); xline(250,'-- k'); xline(300,'-- k'); xline(500,'-- k'); xline(500,'-- k');
 x = [0 100 100 0]; y = [-2 -2 2 2]; fill(x,y,'cyan','FaceAlpha',0.3,'LineStyle','none');
@@ -67,7 +67,7 @@ x = [500 1000 1000 500]; y = [-2 -2 2 2]; fill(x,y,'cyan','FaceAlpha',0.3,'LineS
 xlabel('Time (sec)','FontSize',12)
 subplot(3,1,1);%title('Ground truth phases of the signals to generate multivariate signal')
 if save_plots
-    exportgraphics(gcf, fullfile(pwd,'plots','Ground_truth_cosine_phase_differences.png'),'Resolution',600)
+    exportgraphics(gcf, fullfile(pwd,'plots_new','Ground_truth_cosine_phase_differences.png'),'Resolution',600)
 end
 
 grdidx = zeros(size(t));
@@ -96,13 +96,120 @@ for j = 1:nS
 end
 colorbar(h(3),'Position',[0.93 0.3 0.022 0.4],'FontSize',10); caxis([-1 1])
 if save_plots
-    saveas(gcf, fullfile(pwd,'plots','Ground_truth_states.png'))
+    saveas(gcf, fullfile(pwd,'plots_new','Ground_truth_states.png'))
 end
 
 indx = nchoosek(1:3,2);
 
-load(fullfile("decomposed","sim4_MVMD.mat"))
-load(fullfile("decomposed","sim4_MSWD.mat"))
+load(fullfile("decomposed",['sim',num2str(casee),'_MEMD.mat']))
+load(fullfile("decomposed",['sim',num2str(casee),'_EWT.mat']))
+load(fullfile("decomposed",['sim',num2str(casee),'_IRCNN.mat']))
+load(fullfile("decomposed",['sim',num2str(casee),'_MVMD.mat']))
+load(fullfile("decomposed",['sim',num2str(casee),'_MSWD.mat']))
+
+%% MEMD
+for m = 1:N
+    imf = imfs_MEMD{m};
+    if m == 1
+        plv_length = [length(freq_ranges),size(indx,1)];
+    else
+        plv_length = [length(plv(m-1,:,1)),size(indx,1)];
+    end
+    [COSDELPHI11,plv1,mfreq1] = phase_sync_analysis47(imf,"MVMD",indx,...
+     fs,f,min_freq,plv_length);
+    COSDELPHI1_MEMD{m} = COSDELPHI11;
+    plv(m,1:size(plv1,1),1:size(plv1,2)) = plv1;
+    mfreq{m} = mfreq1;
+end
+
+for i = 1:size(indx,1)
+    [plv_MEMD(:,:,i),counts_MEMD(:,:,i)] = ...
+        sort_values(mfreq,freq_ranges,plv(:,:,i));
+    [mean_plv_MEMD(:,i),lower_plv_MEMD(:,i),upper_plv_MEMD(:,i)] = confidence_interval(plv_MEMD(:,:,i));
+end
+
+for i = 1:N
+    % k-means clustering of the matrices of phase synch.
+    [idx{i},Corr{i}] = mykmeans(COSDELPHI1_MEMD{i},nS,nS);
+    [mCorr_MEMD{i},midx_MEMD{i}] = matchstatesClutster(grdstate{1},Corr{i},idx{i},nS);
+end
+
+disp('MEMD')
+clear COSDELPHI1 CCORSW mfreq plv
+
+%% EWT
+for m = 1:N
+    imf = imfs_EWT{m};
+    if m == 1
+        plv_length = [length(freq_ranges),size(indx,1)];
+    else
+        plv_length = [length(plv(m-1,:,1)),size(indx,1)];
+    end
+    [COSDELPHI11,plv1,mfreq1] = phase_sync_analysis47(imf,"MVMD",indx,...
+     fs,f,min_freq,plv_length);
+    COSDELPHI1_EWT{m} = COSDELPHI11;
+    plv(m,1:size(plv1,1),1:size(plv1,2)) = plv1;
+    mfreq{m} = mfreq1;
+end
+
+for i = 1:size(indx,1)
+    [plv_EWT(:,:,i),counts_EWT(:,:,i)] = ...
+        sort_values(mfreq,freq_ranges,plv(:,:,i));
+    [mean_plv_EWT(:,i),lower_plv_EWT(:,i),upper_plv_EWT(:,i)] = confidence_interval(plv_EWT(:,:,i));
+end
+
+for i = 1:N
+    % k-means clustering of the matrices of phase synch.
+    [idx{i},Corr{i}] = mykmeans(COSDELPHI1_EWT{i},nS,nS);
+    [mCorr_EWT{i},midx_EWT{i}] = matchstatesClutster(grdstate{1},Corr{i},idx{i},nS);
+end
+
+disp('EWT')
+clear mfreq plv idx Corr midx mCorr
+
+
+%% IRCNN
+for m = 1:N
+    imf = imfs_IRCNN{m};
+    for i = 1:size(imf,3)
+        temp_imf = imf(:,:,i);
+        mfreqs = zeros(1,size(temp_imf,1));
+        for j = 1:size(temp_imf,1)
+            mfreqs(j) = meanfreq(temp_imf(j,:),fs);
+        end
+        [~,pos] = min(abs(mfreqs - f));
+        temp = temp_imf(pos,:);
+        temp_imf(pos,:) = temp_imf(1,:);
+        temp_imf(1,:) = temp;
+        imf(:,:,i) = temp_imf;
+        clear temp_imf
+    end
+    if m == 1
+        plv_length = [length(freq_ranges),size(indx,1)];
+    else
+        plv_length = [length(plv(m-1,:,1)),size(indx,1)];
+    end
+    [COSDELPHI11,plv1,mfreq1] = phase_sync_analysis47(imf,"MVMD",indx,...
+     fs,f,min_freq,plv_length);
+    COSDELPHI1_IRCNN{m} = COSDELPHI11;
+    plv(m,1:size(plv1,1),1:size(plv1,2)) = plv1;
+    mfreq{m} = mfreq1;
+end
+
+for i = 1:size(indx,1)
+    [plv_IRCNN(:,:,i),counts_IRCNN(:,:,i)] = ...
+        sort_values(mfreq,freq_ranges,plv(:,:,i));
+    [mean_plv_IRCNN(:,i),lower_plv_IRCNN(:,i),upper_plv_IRCNN(:,i)] = confidence_interval(plv_IRCNN(:,:,i));
+end
+
+for i = 1:N
+    % k-means clustering of the matrices of phase synch.
+    [idx{i},Corr{i}] = mykmeans(COSDELPHI1_IRCNN{i},nS,nS);
+    [mCorr_IRCNN{i},midx_IRCNN{i}] = matchstatesClutster(grdstate{1},Corr{i},idx{i},nS);
+end
+
+disp('IRCNN')
+clear mfreq plv idx Corr midx mCorr
 
 %% MVMD
 for m = 1:N
@@ -168,49 +275,53 @@ end
 disp('MSWD')
 
 %% PLOTS
-filename = fullfile(pwd,'plots',['sim', num2str(casee), '_']);
+filename = fullfile(pwd,'plots_new',['sim', num2str(casee), '_']);
 if save_plots
-    simulation4Plots(mCorr_MVMD,midx_MVMD,mCorr_MSwD,midx_MSwD,grdidx,nS,N,filename)
+    simulation4Plots(mCorr_MEMD,midx_MEMD,mCorr_EWT,midx_EWT,mCorr_IRCNN,midx_IRCNN,mCorr_MVMD,midx_MVMD,mCorr_MSwD,midx_MSwD,grdidx,nS,N,filename)
 else
-    simulation4Plots(mCorr_MVMD,midx_MVMD,mCorr_MSwD,midx_MSwD,grdidx,nS,N)
+    simulation4Plots(mCorr_MEMD,midx_MEMD,mCorr_EWT,midx_EWT,mCorr_IRCNN,midx_IRCNN,mCorr_MVMD,midx_MVMD,mCorr_MSwD,midx_MSwD,grdidx,nS,N)
 end
 
 
 
 for i = 1:size(indx,1)
-    data_plv(:,i) = [mean_plv_MVMD(:,i)',mean_plv_MSWD(:,i)'];
-
+    data_plv(:,i) = [mean_plv_MEMD(:,i)',mean_plv_EWT(:,i)',mean_plv_IRCNN(:,i)',mean_plv_MVMD(:,i)',mean_plv_MSWD(:,i)'];
+    
+    E_plv_MEMD = mean_plv_MEMD(:,i) - lower_plv_MEMD(:,i);
+    E_plv_EWT = mean_plv_EWT(:,i) - lower_plv_EWT(:,i);
+    E_plv_IRCNN = mean_plv_IRCNN(:,i) - lower_plv_IRCNN(:,i);
     E_plv_MVMD = mean_plv_MVMD(:,i) - lower_plv_MVMD(:,i);
     E_plv_MSWD = mean_plv_MSWD(:,i) - lower_plv_MSWD(:,i);
     
     
-    plv_min = min([min(lower_plv_MVMD(:,i)),...
-        min(lower_plv_MSWD(:,i)),min(true_plv{i})]);
-    plv_max = max([max(upper_plv_MVMD(:,i)),...
-        max(upper_plv_MSWD(:,i)),max(true_plv{i})]);
+    plv_min = min([min(lower_plv_MEMD(:,i)),min(lower_plv_EWT(:,i)),min(lower_plv_IRCNN(:,i)), ...
+        min(lower_plv_MVMD(:,i)),min(lower_plv_MSWD(:,i)),min(true_plv{i})]);
+    plv_max = max([max(lower_plv_MEMD(:,i)),max(lower_plv_EWT(:,i)),max(lower_plv_IRCNN(:,i)), ...
+        max(upper_plv_MVMD(:,i)),max(upper_plv_MSWD(:,i)),max(true_plv{i})]);
 
 
     figure
-    errorbar(1:size(plv_MVMD,2),mean_plv_MVMD(:,i),E_plv_MVMD,'bo',"LineStyle","none",'LineWidth',1)
+    errorbar(1:size(plv_MEMD,2),mean_plv_MEMD(:,i),E_plv_MEMD,'mo',"LineStyle","none",'LineWidth',1)
     hold on
-    errorbar(size(plv_MVMD,2)+1:size(plv_MVMD,2)+size(plv_MSWD,2),mean_plv_MSWD(:,i),E_plv_MSWD,'go',"LineStyle","none",'LineWidth',1)
-    plot([true_plv{i},true_plv{i}],'ro','LineWidth',1)
-%     title(['Simulation 5: PLV (combination ', num2str(i),')'])
-%     xlabel('Method')
+    errorbar(size(plv_MEMD,2)+1:2*size(plv_MEMD,2),mean_plv_EWT(:,i),E_plv_EWT,'co',"LineStyle","none",'LineWidth',1)
+    errorbar(2*size(plv_MEMD,2)+1:3*size(plv_MEMD,2),mean_plv_IRCNN(:,i),E_plv_IRCNN,'yo',"LineStyle","none",'LineWidth',1)
+    errorbar(3*size(plv_MEMD,2)+1:4*size(plv_MEMD,2),mean_plv_MVMD(:,i),E_plv_MVMD,'bo',"LineStyle","none",'LineWidth',1)
+    errorbar(4*size(plv_MEMD,2)+1:5*size(plv_MEMD,2),mean_plv_MSWD(:,i),E_plv_MSWD,'go',"LineStyle","none",'LineWidth',1)
+    plot([true_plv{i},true_plv{i},true_plv{i},true_plv{i},true_plv{i}],'ro','LineWidth',1)
     ylabel('PLV','FontSize',14)
-    xlim([1,size(plv_MVMD,2)+size(plv_MSWD,2)])
+    xlim([1,5*size(plv_MVMD,2)])
     ylim([0,plv_max+0.02])
     start = (1 + length(freq_ranges))/2;
-    stop = 2*length(freq_ranges) + 1 - start;
+    stop = 5*length(freq_ranges) + 1 - start;
     ticks = start:length(freq_ranges):stop;
     xticks(ticks)
-    xticklabels({'MVMD-PS','MSwD-PS'})
+    xticklabels({'MEMD-PS','EWT-PS','IRCNN-PS','MVMD-PS','MSwD-PS'})
     a = get(gca,'XTickLabel');  
-    set(gca,'XTickLabel',a,'fontsize',14)
-    xline((length(freq_ranges):length(freq_ranges):length(freq_ranges))+0.5,'--')
+    set(gca,'XTickLabel',a,'fontsize',11,'FontWeight', 'bold')
+    xline((length(freq_ranges):length(freq_ranges):5*length(freq_ranges))+0.5,'--')
     hold off
     if save_plots
-        exportgraphics(gcf,fullfile(pwd,'plots',['sim',num2str(casee),'_comb',num2str(i),'_plv.png']),'Resolution',1000)
+        exportgraphics(gcf,fullfile(pwd,'plots_new',['sim',num2str(casee),'_comb',num2str(i),'_plv.png']),'Resolution',1000)
     end
 end
 

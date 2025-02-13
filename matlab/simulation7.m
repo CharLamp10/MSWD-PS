@@ -2,8 +2,8 @@ clear
 clc
 close all
 
-%% Sim 8
-casee = 8;
+%% Sim 7
+casee = 7;
 TR = 2;         % Repetition time
 fs = 1/TR;      % Sampling frequency
 t = 0:1/fs:668-1/fs;
@@ -20,7 +20,7 @@ z2 = cos(2*pi*f*t + pi/2);
 
 pwelch_window = length(x1);
 
-if ~exist(fullfile("simulated","sim8.mat"))
+if ~exist(fullfile("simulated","sim7.mat"))
     for m = 1:N
         noise = mvnrnd([0 0 0,0,0,0],eye(6),length(t))';
         ex1 = noise(1,:); ex2 = noise(4,:);
@@ -41,9 +41,9 @@ if ~exist(fullfile("simulated","sim8.mat"))
         Data{m} = [X1N;Y1N;Z1N;X2N;Y2N;Z2N]';
         Data{m} = Data{m}./max(abs(Data{m}));
     end
-    save(fullfile("simulated","sim8.mat"),"Data")
+    save(fullfile("simulated","sim7.mat"),"Data")
 else
-    load(fullfile("simulated","sim8.mat"))
+    load(fullfile("simulated","sim7.mat"))
 end
 
 indx = nchoosek(1:size(Data{1},2),2);
@@ -51,10 +51,61 @@ minPeaks = zeros(1,N);
 compStds = zeros(1,N);
 winds = zeros(1,N);
 
+%% NA-MEMD
+imfs_MEMD = cell(1,N);
+T_MEMD = zeros(1,N);
+if ~exist(fullfile("decomposed",['sim',num2str(casee),'_MEMD.mat']))
+    for m = 1:N
+        stp_crit = 'stop';
+        stp_vec = [0.5 0.5 0.5];
+        mode = 'na_snr';
+        intensity_noise = 0.75; 
+        n_channel_na = size(Data{m},2);  
+        ndir = 2*n_channel_na; 
+        tic
+        imfs = namemd(Data{m}, ndir, stp_crit, stp_vec, mode, intensity_noise, n_channel_na);
+        for i = 1:length(imfs)
+            imf(:,:,i) = imfs{i};
+        end
+        T_MEMD(m) = toc;
+        imfs_MEMD{m} = imf;
+        clear imf
+    end
+    save(fullfile("decomposed",['sim',num2str(casee),'_MEMD.mat']),"imfs_MEMD","T_MEMD")
+    disp('MEMD')
+end
+
+%% EWT
+imfs_EWT = cell(1,N);
+T_EWT = zeros(1,N);
+if ~exist(fullfile("decomposed",['sim',num2str(casee),'_EWT.mat']))
+    for m = 1:N
+        tic
+        for i = 1:size(Data{m},2)
+            temp_imf = ewt(Data{m}(:,i))';
+            mfreqs = zeros(1,size(temp_imf,1));
+            for j = 1:size(temp_imf,1)
+                mfreqs(j) = meanfreq(temp_imf(j,:),fs);
+            end
+            [~,pos] = min(abs(mfreqs - f));
+            temp = temp_imf(pos,:);
+            temp_imf(pos,:) = temp_imf(1,:);
+            temp_imf(1,:) = temp;
+            imf(:,:,i) = temp_imf;
+            clear temp_imf
+        end
+        T_EWT(m) = toc;
+        imfs_EWT{m} = imf;
+        clear imf
+    end
+    save(fullfile("decomposed",['sim',num2str(casee),'_EWT.mat']),"imfs_EWT","T_EWT")
+    disp('EWT')
+end
+
 %% MVMD
 imfs_MVMD = cell(1,N);
 T_MVMD = zeros(1,N);
-if ~exist(fullfile("decomposed","sim8_MVMD.mat"))
+if ~exist(fullfile("decomposed",['sim',num2str(casee),'_MVMD.mat']))
     for m = 1:N
         tau = 0; DC = 1; init = 0; tol = 1e-9;
         K = 2; alpha = 1000;
@@ -64,15 +115,15 @@ if ~exist(fullfile("decomposed","sim8_MVMD.mat"))
         imfs_MVMD{m} = imf;
     end
     disp('MVMD')
-    save(fullfile("decomposed","sim8_MVMD.mat"),"imfs_MVMD","T_MVMD")
+    save(fullfile("decomposed",['sim',num2str(casee),'_MVMD.mat']),"imfs_MVMD","T_MVMD")
 end
 
 
-%% MSWD-CL
+%% MSWD
 imfs_MSWD = cell(1,N);
 corrs = cell(1,N);
 T_MSWD = zeros(1,N);
-if ~exist(fullfile("decomposed","sim8_MSWD.mat"))
+if ~exist(fullfile("decomposed",['sim',num2str(casee),'_MSWD.mat']))
     for m = 1:N
         p_value = 1e-5;
         wind = 1;
@@ -91,5 +142,5 @@ if ~exist(fullfile("decomposed","sim8_MSWD.mat"))
         imfs_MSWD{m} = imf;
     end
     disp('MSWD')
-    save(fullfile("decomposed","sim8_MSWD.mat"),"imfs_MSWD","T_MSWD")
+    save(fullfile("decomposed",['sim',num2str(casee),'_MSWD.mat']),"imfs_MSWD","T_MSWD")
 end

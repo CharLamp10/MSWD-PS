@@ -5,12 +5,12 @@ close all
 signal_length = 200;
 numICs = 100;
 indx = nchoosek(1:numICs,2);
-save_res = true;
+save_res = false;
 plotStateTransitions = false;
 
 %% Load TVPS data and concatenate them across subjects
-load(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE','\COSDELPHI_MSWD_20_subjects.mat'])
-load(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE','\COSDELPHI_MVMD_20_subjects.mat'])
+load('F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\COSDELPHI_MSWD_20_subjects.mat')
+load('F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\COSDELPHI_MVMD_20_subjects.mat')
 
 for i = 1:length(COSDELPHI1_MSWD)
     if i == 1
@@ -27,18 +27,18 @@ DBI_MVMD = 2;
 DBI_MSWD = 2;
 
 %% Perform clustering and get the centroids and the clustered data
-if ~exist(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE','\mean_C_MVMD_all.mat']) ||...
-    ~exist(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE','\mean_C_MSWD_all.mat'])
+if ~exist('F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\mean_C_MVMD_all.mat') ||...
+        ~exist('F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\mean_C_MSWD_all.mat')
     [~,C_init_MVMD,sumd_MVMD] = kmeans(squeeze(COSDELPHI_MVMD),DBI_MVMD,'MaxIter',150,'Start','sample','Replicates',10); % replicates default 200, MaxIter 150, replicates 10
     [mean_idx_MVMD_all{1},mean_C_MVMD_all{1}] = kmeans(squeeze(COSDELPHI_MVMD),DBI_MVMD,'MaxIter',500,'Start',C_init_MVMD); %1000 default
     
     [~,C_init_MSWD,sumd_MSWD] = kmeans(squeeze(COSDELPHI_MSWD),DBI_MSWD,'MaxIter',150,'Start','sample','Replicates',10); % replicates default 200, MaxIter 150, replicates 10
     [mean_idx_MSWD_all{1},mean_C_MSWD_all{1}] = kmeans(squeeze(COSDELPHI_MSWD),DBI_MSWD,'MaxIter',500,'Start',C_init_MSWD); %1000 default
-    save(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE','\mean_C_MVMD_all.mat'],'mean_idx_MVMD_all','mean_C_MVMD_all');
+    save(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_',casee,'\mean_C_MVMD_all.mat'],'mean_idx_MVMD_all','mean_C_MVMD_all');
     save(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE','\mean_C_MSWD_all.mat'],'mean_idx_MSWD_all',"mean_C_MSWD_all");
 else
-    load(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE','\mean_C_MVMD_all.mat']);
-    load(['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE','\mean_C_MSWD_all.mat']);
+    load('F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\mean_C_MVMD_all.mat');
+    load('F:\MSWD_paper_new\MSWD_CL_paper_decomposed_ABIDE\mean_C_MSWD_all.mat');
 end
 
 
@@ -89,7 +89,7 @@ for i = 1:size(mean_C_MVMD_all{1},1)
     end
 end
 if save_res
-    exportgraphics(gcf,fullfile(pwd,'plots_real_application',['ABIDE','_states_zero_diag_MVMD.png']),'Resolution',600)
+    exportgraphics(gcf,fullfile(pwd,'plots_real_application_new',[casee,'_states_zero_diag_MVMD.png']),'Resolution',600)
 end
 
 figure;
@@ -114,5 +114,5 @@ for i = 1:size(mean_C_MSWD_all{1},1)
     end
 end
 if save_res
-    exportgraphics(gcf,fullfile(pwd,'plots_real_application',['ABIDE','_states_zero_diag_MSWD.png']),'Resolution',600)
+    exportgraphics(gcf,fullfile(pwd,'plots_real_application_new',[casee,'_states_zero_diag_MSWD.png']),'Resolution',600)
 end
