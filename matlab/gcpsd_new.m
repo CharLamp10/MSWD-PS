@@ -1,4 +1,4 @@
-function [S, w] = gcpsd_CL(input)
+function [S, w] = gcpsd_new(input)
 % -------------------------------------------------------------------------
 %   GCPSD computes the Generalized Cross Power Spectral Density
 % -------------------------------------------------------------------------

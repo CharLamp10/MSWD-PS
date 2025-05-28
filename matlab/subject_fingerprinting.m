@@ -5,8 +5,8 @@ casee = 'MSWD';
 cat = '100';
 save_results = 1;
 
-path_data1 = ['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_rest1\',casee,'_HCP_98_subjects.mat'];
-path_data2 = ['E:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_rest2\',casee,'_HCP_98_subjects.mat'];
+path_data1 = ['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_rest1\',casee,'_HCP_98_subjects.mat'];
+path_data2 = ['F:\MSWD_paper_new\MSWD_CL_paper_decomposed_HCP_rest2\',casee,'_HCP_98_subjects.mat'];
 visit1 = load(path_data1);
 visit2 = load(path_data2);
 
@@ -150,6 +150,6 @@ plot(log10(factors),correct./98,'LineWidth',1.2)
 ax = gca;
 ax.FontSize = 11; 
 xlim([log10(factors(1)),log10(factors(end))])
-xlabel('Log_1_0()','FontSize',14)
+xlabel('Log_1_0(λ)','FontSize',14)
 ylabel('Subject Identification Rate (%)','FontSize',14)
 exportgraphics(gcf,'C:\Users\100063082\Desktop\Dissertation\MSWD_paper_new\paper_plots\SI_rate.png','Resolution',1000)
